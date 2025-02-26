@@ -1,11 +1,13 @@
 
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Sun, Moon, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const Navbar = () => {
   const { isDarkMode, toggleDarkMode } = useApp();
+  const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -29,6 +31,15 @@ const Navbar = () => {
             <Link to="/contact" className="hover:text-primary transition-colors">
               Kontak
             </Link>
+            {user ? (
+              <Link to="/profile" className="hover:text-primary transition-colors">
+                Profil
+              </Link>
+            ) : (
+              <Link to="/login" className="hover:text-primary transition-colors">
+                Login
+              </Link>
+            )}
             <button
               onClick={toggleDarkMode}
               className="p-2 rounded-full hover:bg-accent transition-colors"
@@ -76,6 +87,23 @@ const Navbar = () => {
               >
                 Kontak
               </Link>
+              {user ? (
+                <Link
+                  to="/profile"
+                  className="hover:text-primary transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Profil
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  className="hover:text-primary transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Login
+                </Link>
+              )}
             </div>
           </div>
         )}
