@@ -32,9 +32,16 @@ const Navbar = () => {
               Kontak
             </Link>
             {user ? (
-              <Link to="/profile" className="hover:text-primary transition-colors">
-                Profil
-              </Link>
+              <>
+                <Link to="/profile" className="hover:text-primary transition-colors">
+                  Profil
+                </Link>
+                {user.role === 'admin' && (
+                  <Link to="/admin/users" className="hover:text-primary transition-colors">
+                    Admin Panel
+                  </Link>
+                )}
+              </>
             ) : (
               <Link to="/login" className="hover:text-primary transition-colors">
                 Login
@@ -88,13 +95,24 @@ const Navbar = () => {
                 Kontak
               </Link>
               {user ? (
-                <Link
-                  to="/profile"
-                  className="hover:text-primary transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Profil
-                </Link>
+                <>
+                  <Link
+                    to="/profile"
+                    className="hover:text-primary transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Profil
+                  </Link>
+                  {user.role === 'admin' && (
+                    <Link
+                      to="/admin/users"
+                      className="hover:text-primary transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Admin Panel
+                    </Link>
+                  )}
+                </>
               ) : (
                 <Link
                   to="/login"
