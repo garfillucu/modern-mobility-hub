@@ -14,6 +14,28 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validasi email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        title: "Error",
+        description: "Email tidak valid",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Validasi password
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password harus minimal 6 karakter",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (password !== confirmPassword) {
       toast({
         title: "Error",
@@ -32,6 +54,7 @@ const Register = () => {
       });
       navigate('/login');
     } catch (error: any) {
+      console.error('Registration error:', error);
       toast({
         title: "Error",
         description: error.message || "Gagal melakukan registrasi",
@@ -58,7 +81,11 @@ const Register = () => {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 rounded-md border bg-background"
               required
+              placeholder="nama@example.com"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Gunakan email valid dengan format username@domain.com
+            </p>
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium mb-2">
@@ -71,7 +98,11 @@ const Register = () => {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 rounded-md border bg-background"
               required
+              minLength={6}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Minimal 6 karakter
+            </p>
           </div>
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium mb-2">

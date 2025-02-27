@@ -29,6 +29,7 @@ const Login = () => {
         navigate('/profile');
       }
     } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "Error",
         description: error.message || "Email atau password salah",
@@ -43,6 +44,9 @@ const Login = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-md mx-auto">
         <h1 className="text-3xl font-bold mb-6">Login</h1>
+        <p className="mb-4 text-muted-foreground">
+          Silahkan daftar terlebih dahulu jika belum memiliki akun.
+        </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-2">
@@ -55,6 +59,7 @@ const Login = () => {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 rounded-md border bg-background"
               required
+              placeholder="nama@example.com"
             />
           </div>
           <div>
