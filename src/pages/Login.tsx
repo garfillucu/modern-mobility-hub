@@ -22,16 +22,16 @@ const Login = () => {
         description: "Selamat datang kembali!",
       });
       
-      // Handle redirect based on role from userData directly
-      if (userData.role === 'admin') {
+      // Handle redirect based on role
+      if (userData?.role === 'admin') {
         navigate('/admin/users');
       } else {
         navigate('/profile');
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Email atau password salah",
+        description: error.message || "Email atau password salah",
         variant: "destructive"
       });
     } finally {

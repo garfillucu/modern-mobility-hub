@@ -31,10 +31,10 @@ const Register = () => {
         description: "Silahkan login dengan akun Anda",
       });
       navigate('/login');
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Gagal melakukan registrasi",
+        description: error.message || "Gagal melakukan registrasi",
         variant: "destructive"
       });
     } finally {

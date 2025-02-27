@@ -1,14 +1,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  User,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-} from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
+import { Session, User } from '@supabase/supabase-js';
 import { toast } from '@/components/ui/use-toast';
 
 interface AuthUser extends User {
@@ -16,60 +9,51 @@ interface AuthUser extends User {
 }
 
 interface UserData {
-  role: 'user' | 'admin';
+  id: string;
   email: string;
-  createdAt: string;
+  role: 'user' | 'admin';
+  created_at: string;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   register: (email: string, password: string) => Promise<void>;
-  login: (email: string, password: string) => Promise<UserData>;
+  login: (email: string, password: string) => Promise<UserData | null>;
   logout: () => Promise<void>;
 }
-
-// Cache for user data to prevent redundant Firestore queries
-const userDataCache = new Map<string, UserData>();
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
 
-  // Function to fetch user data from Firestore
+  // Function to fetch user data from Supabase
   const fetchUserData = async (userId: string): Promise<UserData | null> => {
-    // Check cache first
-    if (userDataCache.has(userId)) {
-      console.log('Using cached user data for', userId);
-      return userDataCache.get(userId) || null;
-    }
-
     try {
-      console.log('Fetching user data from Firestore for', userId);
-      const userDoc = await getDoc(doc(db, 'users', userId));
+      console.log('Fetching user data from Supabase for', userId);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
       
-      if (userDoc.exists()) {
-        const userData = userDoc.data() as UserData;
-        console.log('Firestore user data:', userData);
-        
-        // Validate role is a proper value
-        if (!userData.role || (userData.role !== 'user' && userData.role !== 'admin')) {
-          console.warn('Invalid role detected, defaulting to "user"');
-          userData.role = 'user';
-        }
-        
-        // Store in cache
-        userDataCache.set(userId, userData);
-        return userData;
+      if (error) {
+        console.error('Error fetching user data:', error);
+        return null;
+      }
+      
+      if (data) {
+        console.log('Supabase user data:', data);
+        return data as UserData;
       } else {
         console.warn('User document does not exist');
         return null;
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
-      // Notify user about permission issue
       toast({
         title: "Data Access Error",
         description: "Could not load user profile. Please contact support.",
@@ -81,100 +65,137 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     console.log('Setting up auth state listener');
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('Auth state changed:', firebaseUser?.email);
-      
-      if (firebaseUser) {
-        // Start with auth user info immediately for faster UI response
-        console.log('User authenticated:', firebaseUser.uid);
-        setUser(firebaseUser);
-        
-        // Then enhance with Firestore data
-        console.log('Fetching additional user data');
-        const userData = await fetchUserData(firebaseUser.uid);
-        
-        if (userData) {
-          console.log('Setting user with role:', userData.role);
-          setUser(prev => {
-            if (!prev) return null;
-            return { 
-              ...prev, 
-              role: userData.role 
-            };
-          });
-        } else {
-          console.warn('No user data found, using default role');
-          setUser(prev => {
-            if (!prev) return null;
-            return { 
-              ...prev, 
-              role: 'user' 
-            };
-          });
-        }
+    
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        handleUserSession(session);
       } else {
-        console.log('User signed out');
-        setUser(null);
-        // Clear cache on logout
-        userDataCache.clear();
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
-    return unsubscribe;
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event);
+        setSession(session);
+        
+        if (session?.user) {
+          await handleUserSession(session);
+        } else {
+          setUser(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  // Handle user session
+  const handleUserSession = async (session: Session) => {
+    const supabaseUser = session.user;
+    console.log('User authenticated:', supabaseUser.id);
+    
+    // Set basic user info first
+    setUser(supabaseUser as AuthUser);
+    
+    // Then fetch and add role info
+    const userData = await fetchUserData(supabaseUser.id);
+    
+    if (userData) {
+      console.log('Setting user with role:', userData.role);
+      setUser(prev => {
+        if (!prev) return null;
+        return { 
+          ...prev, 
+          role: userData.role 
+        };
+      });
+    } else {
+      // Create new user entry if not exists
+      const newUserData: Omit<UserData, 'id' | 'created_at'> = {
+        email: supabaseUser.email || '',
+        role: 'user',
+      };
+      
+      // Insert new user into database
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{ id: supabaseUser.id, ...newUserData }])
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Error creating user data:', error);
+        setUser(prev => {
+          if (!prev) return null;
+          return { 
+            ...prev, 
+            role: 'user' 
+          };
+        });
+      } else if (data) {
+        console.log('Created new user with role: user');
+        setUser(prev => {
+          if (!prev) return null;
+          return { 
+            ...prev, 
+            role: data.role 
+          };
+        });
+      }
+    }
+    
+    setLoading(false);
+  };
 
   const register = async (email: string, password: string) => {
     try {
-      const { user } = await createUserWithEmailAndPassword(auth, email, password);
-      const userData: UserData = {
-        email: user.email || '',
-        role: 'user' as const, // Explicitly type this as 'user'
-        createdAt: new Date().toISOString()
-      };
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
       
-      await setDoc(doc(db, 'users', user.uid), userData);
-      console.log('User registered with role:', userData.role);
+      if (error) {
+        throw error;
+      }
       
-      // Store in cache immediately
-      userDataCache.set(user.uid, userData);
+      if (data.user) {
+        // New user data will be created by the auth state change listener
+        console.log('User registered:', data.user.id);
+      }
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
     }
   };
 
-  const login = async (email: string, password: string): Promise<UserData> => {
+  const login = async (email: string, password: string): Promise<UserData | null> => {
     try {
       console.log('Attempting login for:', email);
-      const { user: authUser } = await signInWithEmailAndPassword(auth, email, password);
-      console.log('User authenticated:', authUser.uid);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
-      // Fetch user data immediately after login
-      const userData = await fetchUserData(authUser.uid);
-      if (!userData) {
-        console.error('No user data found after login');
-        
-        // Create default userData as fallback
-        const defaultUserData: UserData = {
-          email: authUser.email || '',
-          role: 'user',
-          createdAt: new Date().toISOString()
-        };
-        
-        // Store default data in Firestore
-        await setDoc(doc(db, 'users', authUser.uid), defaultUserData);
-        console.log('Created default user data with role: user');
-        
-        // Update cache
-        userDataCache.set(authUser.uid, defaultUserData);
-        
-        return defaultUserData;
+      if (error) {
+        throw error;
       }
       
-      console.log('Login successful with role:', userData.role);
-      return userData;
+      if (data.user) {
+        // User data will be fetched by the auth state change listener
+        // We'll fetch it again here so we can return it
+        const userData = await fetchUserData(data.user.id);
+        console.log('Login successful with role:', userData?.role);
+        return userData;
+      }
+      
+      return null;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -183,10 +204,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      await signOut(auth);
-      // Clear cache on logout
-      userDataCache.clear();
-      console.log('User logged out, cache cleared');
+      await supabase.auth.signOut();
+      console.log('User logged out');
     } catch (error) {
       console.error('Logout error:', error);
       throw error;

@@ -17,7 +17,9 @@ import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Navbar from "./components/Navbar";
 import AdminLayout from "./components/AdminLayout";
-import Users from "./pages/admin/Users";
+import AdminUsers from "./pages/admin/Users";
+import AdminCars from "./pages/admin/Cars";
+import CarForm from "./pages/admin/CarForm";
 
 const queryClient = new QueryClient();
 
@@ -44,7 +46,10 @@ const App = () => (
                   
                   {/* Admin Routes */}
                   <Route element={<AdminLayout />}>
-                    <Route path="/admin/users" element={<Users />} />
+                    <Route path="/admin/users" element={<AdminUsers />} />
+                    <Route path="/admin/cars" element={<AdminCars />} />
+                    <Route path="/admin/cars/add" element={<CarForm />} />
+                    <Route path="/admin/cars/edit/:id" element={<CarForm />} />
                   </Route>
                   
                   <Route path="*" element={<NotFound />} />

@@ -1,14 +1,13 @@
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 
 interface User {
   id: string;
   email: string;
   role: 'user' | 'admin';
-  createdAt: string;
+  created_at: string;
 }
 
 const Users = () => {
@@ -21,17 +20,19 @@ const Users = () => {
 
   const fetchUsers = async () => {
     try {
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      const usersData = usersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as User[];
-      setUsers(usersData);
-    } catch (error) {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      setUsers(data as User[]);
+    } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
         title: "Error",
-        description: "Gagal mengambil data user",
+        description: "Gagal mengambil data user: " + error.message,
         variant: "destructive"
       });
     } finally {
@@ -41,21 +42,26 @@ const Users = () => {
 
   const handleRoleChange = async (userId: string, newRole: 'user' | 'admin') => {
     try {
-      await updateDoc(doc(db, 'users', userId), {
-        role: newRole
-      });
+      const { error } = await supabase
+        .from('users')
+        .update({ role: newRole })
+        .eq('id', userId);
+        
+      if (error) throw error;
+      
       setUsers(users.map(user => 
         user.id === userId ? { ...user, role: newRole } : user
       ));
+      
       toast({
         title: "Sukses",
         description: "Role user berhasil diubah",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating user role:', error);
       toast({
         title: "Error",
-        description: "Gagal mengubah role user",
+        description: "Gagal mengubah role user: " + error.message,
         variant: "destructive"
       });
     }
@@ -65,17 +71,24 @@ const Users = () => {
     if (!confirm('Anda yakin ingin menghapus user ini?')) return;
     
     try {
-      await deleteDoc(doc(db, 'users', userId));
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+        
+      if (error) throw error;
+      
       setUsers(users.filter(user => user.id !== userId));
+      
       toast({
         title: "Sukses",
         description: "User berhasil dihapus",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
       toast({
         title: "Error",
-        description: "Gagal menghapus user",
+        description: "Gagal menghapus user: " + error.message,
         variant: "destructive"
       });
     }
@@ -101,32 +114,38 @@ const Users = () => {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b">
-                  <td className="p-4">{user.email}</td>
-                  <td className="p-4">
-                    <select
-                      value={user.role}
-                      onChange={(e) => handleRoleChange(user.id, e.target.value as 'user' | 'admin')}
-                      className="bg-background border rounded px-2 py-1"
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </td>
-                  <td className="p-4">
-                    {new Date(user.createdAt).toLocaleDateString('id-ID')}
-                  </td>
-                  <td className="p-4">
-                    <button
-                      onClick={() => handleDeleteUser(user.id)}
-                      className="text-destructive hover:underline"
-                    >
-                      Hapus
-                    </button>
-                  </td>
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-4 text-center">Tidak ada data user</td>
                 </tr>
-              ))}
+              ) : (
+                users.map((user) => (
+                  <tr key={user.id} className="border-b">
+                    <td className="p-4">{user.email}</td>
+                    <td className="p-4">
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleRoleChange(user.id, e.target.value as 'user' | 'admin')}
+                        className="bg-background border rounded px-2 py-1"
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                    <td className="p-4">
+                      {new Date(user.created_at).toLocaleDateString('id-ID')}
+                    </td>
+                    <td className="p-4">
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="text-destructive hover:underline"
+                      >
+                        Hapus
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
