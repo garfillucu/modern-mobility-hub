@@ -87,9 +87,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const register = async (email: string, password: string) => {
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
-      const userData = {
+      const userData: UserData = {
         email: user.email || '',
-        role: 'user',
+        role: 'user' as const, // Explicitly type this as 'user'
         createdAt: new Date().toISOString()
       };
       
