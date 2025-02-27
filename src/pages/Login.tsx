@@ -15,12 +15,19 @@ const Login = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      await login(email, password);
+      const userData = await login(email, password);
+      
       toast({
         title: "Login Berhasil",
         description: "Selamat datang kembali!",
       });
-      navigate('/profile');
+      
+      // Handle redirect based on role from userData directly
+      if (userData.role === 'admin') {
+        navigate('/admin/users');
+      } else {
+        navigate('/profile');
+      }
     } catch (error) {
       toast({
         title: "Error",
