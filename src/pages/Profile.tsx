@@ -1,6 +1,7 @@
 
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
+import { Shield } from 'lucide-react';
 
 const Profile = () => {
   const { user, logout } = useAuth();
@@ -22,7 +23,12 @@ const Profile = () => {
             </div>
             <div>
               <span className="font-semibold">Role:</span>
-              <span className="ml-2 capitalize">{user.role}</span>
+              <span className="ml-2 capitalize flex items-center">
+                {user.role || 'user'} 
+                {user.role === 'admin' && (
+                  <Shield className="ml-2 h-4 w-4 text-primary" />
+                )}
+              </span>
             </div>
           </div>
 

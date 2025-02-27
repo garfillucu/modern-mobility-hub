@@ -1,14 +1,25 @@
 
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sun, Moon, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { Sun, Moon, Menu, X, UserRound, ShieldCheck } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const Navbar = () => {
   const { isDarkMode, toggleDarkMode } = useApp();
   const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [userHasAdminRole, setUserHasAdminRole] = useState(false);
+  
+  // Effect to check and set admin role status
+  useEffect(() => {
+    if (user && user.role === 'admin') {
+      console.log('User has admin role:', user.email);
+      setUserHasAdminRole(true);
+    } else {
+      setUserHasAdminRole(false);
+    }
+  }, [user]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
@@ -33,11 +44,13 @@ const Navbar = () => {
             </Link>
             {user ? (
               <>
-                <Link to="/profile" className="hover:text-primary transition-colors">
+                <Link to="/profile" className="hover:text-primary transition-colors flex items-center">
+                  <UserRound size={16} className="mr-1" />
                   Profil
                 </Link>
-                {user.role === 'admin' && (
-                  <Link to="/admin/users" className="hover:text-primary transition-colors">
+                {userHasAdminRole && (
+                  <Link to="/admin/users" className="hover:text-primary transition-colors flex items-center text-primary font-medium">
+                    <ShieldCheck size={16} className="mr-1" />
                     Admin Panel
                   </Link>
                 )}
@@ -98,17 +111,19 @@ const Navbar = () => {
                 <>
                   <Link
                     to="/profile"
-                    className="hover:text-primary transition-colors"
+                    className="hover:text-primary transition-colors flex items-center"
                     onClick={() => setIsMenuOpen(false)}
                   >
+                    <UserRound size={16} className="mr-1" />
                     Profil
                   </Link>
-                  {user.role === 'admin' && (
+                  {userHasAdminRole && (
                     <Link
                       to="/admin/users"
-                      className="hover:text-primary transition-colors"
+                      className="hover:text-primary transition-colors flex items-center text-primary font-medium"
                       onClick={() => setIsMenuOpen(false)}
                     >
+                      <ShieldCheck size={16} className="mr-1" />
                       Admin Panel
                     </Link>
                   )}
