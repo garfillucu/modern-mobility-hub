@@ -13,6 +13,65 @@ interface User {
 const Users = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tableExists, setTableExists] = useState(true);
+
+  // Function to ensure the users table exists
+  const ensureUsersTableExists = async () => {
+    try {
+      // Check if table exists by attempting to get schema
+      const { error } = await supabase
+        .from('users')
+        .select('id')
+        .limit(1);
+
+      if (error && error.code === '42P01') { // Table does not exist error code
+        console.log('Creating users table as it does not exist');
+        setTableExists(false);
+        
+        // Create the users table
+        const { error: createError } = await supabase.rpc('create_users_table');
+        
+        if (createError) {
+          console.error('Error creating users table:', createError);
+          
+          // Try direct SQL as fallback
+          const { error: sqlError } = await supabase.rpc('execute_sql', {
+            sql_query: `
+              CREATE TABLE IF NOT EXISTS users (
+                id UUID PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+              );
+              CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
+            `
+          });
+          
+          if (sqlError) {
+            console.error('Failed to create users table via SQL:', sqlError);
+            toast({
+              title: "Database Error",
+              description: "Could not create users table. Please create it manually in Supabase.",
+              variant: "destructive"
+            });
+            return false;
+          } else {
+            console.log('Users table created successfully via SQL');
+            setTableExists(true);
+            return true;
+          }
+        } else {
+          console.log('Users table created successfully');
+          setTableExists(true);
+          return true;
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('Error checking/creating users table:', error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -20,6 +79,15 @@ const Users = () => {
 
   const fetchUsers = async () => {
     try {
+      setLoading(true);
+      
+      // First ensure the table exists
+      const tableReady = await ensureUsersTableExists();
+      if (!tableReady) {
+        setLoading(false);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -96,6 +164,26 @@ const Users = () => {
 
   if (loading) {
     return <div className="container mx-auto px-4 py-8">Loading...</div>;
+  }
+
+  if (!tableExists) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">Manajemen User</h1>
+        <div className="bg-destructive/10 p-4 rounded-md">
+          <h2 className="text-lg font-semibold text-destructive">Database Error</h2>
+          <p className="mt-2">
+            Tabel user belum tersedia. Silakan buat tabel "users" di dashboard Supabase atau refresh halaman ini untuk mencoba membuat tabel secara otomatis.
+          </p>
+          <button 
+            className="mt-4 bg-primary text-primary-foreground px-4 py-2 rounded-md"
+            onClick={fetchUsers}
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

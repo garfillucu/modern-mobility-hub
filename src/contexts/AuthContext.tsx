@@ -30,9 +30,62 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
 
+  // Function to ensure the users table exists
+  const ensureUsersTableExists = async () => {
+    try {
+      // Check if table exists by attempting to get schema
+      const { error } = await supabase
+        .from('users')
+        .select('id')
+        .limit(1);
+
+      if (error && error.code === '42P01') { // Table does not exist error code
+        console.log('Creating users table as it does not exist');
+        
+        // Create the users table
+        const { error: createError } = await supabase.rpc('create_users_table');
+        
+        if (createError) {
+          console.error('Error creating users table:', createError);
+          
+          // Try direct SQL as fallback
+          const { error: sqlError } = await supabase.rpc('execute_sql', {
+            sql_query: `
+              CREATE TABLE IF NOT EXISTS users (
+                id UUID PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+              );
+              CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
+            `
+          });
+          
+          if (sqlError) {
+            console.error('Failed to create users table via SQL:', sqlError);
+            toast({
+              title: "Database Error",
+              description: "Could not create users table. Please create it manually in Supabase.",
+              variant: "destructive"
+            });
+          } else {
+            console.log('Users table created successfully via SQL');
+          }
+        } else {
+          console.log('Users table created successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Error checking/creating users table:', error);
+    }
+  };
+
   // Function to fetch user data from Supabase
   const fetchUserData = async (userId: string): Promise<UserData | null> => {
     try {
+      // Ensure users table exists before querying
+      await ensureUsersTableExists();
+      
       console.log('Fetching user data from Supabase for', userId);
       const { data, error } = await supabase
         .from('users')
@@ -64,36 +117,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    console.log('Setting up auth state listener');
-    
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        handleUserSession(session);
+    const initializeAuth = async () => {
+      console.log('Setting up auth state listener');
+      
+      // Ensure users table exists
+      await ensureUsersTableExists();
+      
+      // Initial session check
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      
+      if (data.session?.user) {
+        await handleUserSession(data.session);
       } else {
         setLoading(false);
       }
-    });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event);
-        setSession(session);
-        
-        if (session?.user) {
-          await handleUserSession(session);
-        } else {
-          setUser(null);
-          setLoading(false);
+      // Listen for auth changes
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          console.log('Auth state changed:', event);
+          setSession(session);
+          
+          if (session?.user) {
+            await handleUserSession(session);
+          } else {
+            setUser(null);
+            setLoading(false);
+          }
         }
-      }
-    );
+      );
 
-    return () => {
-      subscription.unsubscribe();
+      return () => {
+        subscription.unsubscribe();
+      };
     };
+
+    initializeAuth();
   }, []);
 
   // Handle user session
@@ -103,6 +163,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     // Set basic user info first
     setUser(supabaseUser as AuthUser);
+    
+    // Ensure users table exists
+    await ensureUsersTableExists();
     
     // Then fetch and add role info
     const userData = await fetchUserData(supabaseUser.id);
@@ -162,6 +225,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const register = async (email: string, password: string) => {
     try {
+      // Ensure users table exists first
+      await ensureUsersTableExists();
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -200,6 +266,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = async (email: string, password: string): Promise<UserData | null> => {
     try {
+      // Ensure users table exists first
+      await ensureUsersTableExists();
+      
       console.log('Attempting login for:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
