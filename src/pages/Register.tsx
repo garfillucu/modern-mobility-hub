@@ -26,6 +26,16 @@ const Register = () => {
       return;
     }
     
+    // Cek apakah menggunakan domain example.com (domain ini sering ditolak)
+    if (email.toLowerCase().endsWith('@example.com')) {
+      toast({
+        title: "Error",
+        description: "Domain example.com tidak diperbolehkan. Gunakan alamat email yang valid.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // Validasi password
     if (password.length < 6) {
       toast({
@@ -55,9 +65,23 @@ const Register = () => {
       navigate('/login');
     } catch (error: any) {
       console.error('Registration error:', error);
+      
+      // Tangani pesan error dengan lebih baik
+      let errorMessage = "Gagal melakukan registrasi";
+      
+      if (error.message) {
+        if (error.message.includes("invalid")) {
+          errorMessage = "Email tidak valid atau sudah terdaftar. Gunakan alamat email lain.";
+        } else if (error.message.includes("already registered")) {
+          errorMessage = "Email sudah terdaftar. Silakan login atau gunakan email lain.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Gagal melakukan registrasi",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -81,10 +105,10 @@ const Register = () => {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 rounded-md border bg-background"
               required
-              placeholder="nama@example.com"
+              placeholder="nama@gmail.com"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Gunakan email valid dengan format username@domain.com
+              Gunakan email valid (gmail.com, yahoo.com, dll). Domain example.com tidak diperbolehkan.
             </p>
           </div>
           <div>
