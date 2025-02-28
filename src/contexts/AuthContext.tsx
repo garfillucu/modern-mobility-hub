@@ -184,6 +184,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       
       if (error) {
+        // Jika email belum dikonfirmasi tapi sudah dinonaktifkan di Supabase dashboard
+        if (error.code === 'email_not_confirmed') {
+          // Coba akses user data langsung
+          const { data: userData } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+          
+          if (userData) {
+            // Set user secara manual
+            setUser({
+              id: userData.id,
+              email: email,
+              role: userData.role,
+              // Tambahkan properti lain yang dibutuhkan
+              app_metadata: {},
+              user_metadata: {},
+              aud: '',
+              created_at: ''
+            } as AuthUser);
+            
+            return userData as UserData;
+          }
+        }
+        
         throw error;
       }
       

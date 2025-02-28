@@ -44,6 +44,13 @@ const Login = () => {
           description: "Email atau password salah",
           variant: "destructive"
         });
+      } else if (error.code === 'email_provider_disabled') {
+        // Error khusus ketika login dengan email dinonaktifkan
+        toast({
+          title: "Error",
+          description: "Login dengan email saat ini dinonaktifkan. Silakan hubungi administrator.",
+          variant: "destructive"
+        });
       } else {
         toast({
           title: "Error",
@@ -109,8 +116,8 @@ const Login = () => {
         <div className="mt-8 p-4 bg-muted rounded-md">
           <h3 className="font-medium text-sm mb-2">Catatan Penting:</h3>
           <p className="text-xs text-muted-foreground">
-            Setelah mendaftar, Anda harus mengkonfirmasi email Anda dengan mengklik link yang dikirim ke alamat email Anda.
-            Jika menggunakan Supabase di lingkungan pengembangan, email konfirmasi mungkin tidak terkirim dan Anda perlu mengaktifkan akun secara manual di Dashboard Supabase.
+            Jika Anda sudah menonaktifkan konfirmasi email di Supabase namun masih menerima error, coba refresh halaman atau daftar dengan email baru. 
+            Perubahan pengaturan di Supabase mungkin memerlukan waktu untuk diterapkan sepenuhnya.
           </p>
         </div>
       </div>
