@@ -8,31 +8,41 @@ export const initDatabase = async () => {
     console.log('Initializing database...');
 
     // Periksa apakah tabel users sudah ada
-    const { data: userTableExists } = await supabase
+    const { data: userTableExists, error: userError } = await supabase
       .from('users')
       .select('*')
-      .limit(1)
-      .catch(() => ({ data: null }));
+      .limit(1);
     
-    // Jika tabel users belum ada, kita akan menangani pembuatan di UI
-    if (userTableExists === null) {
+    // Jika ada error, berarti tabel mungkin belum ada
+    if (userError) {
       console.log('Users table does not exist yet. Please create it in Supabase dashboard.');
       toast({
         title: "Database Setup Required",
         description: "Please set up the database tables in Supabase dashboard first.",
         variant: "destructive"
       });
+      return false;
     }
     
     // Periksa apakah tabel cars sudah ada
-    const { data: existingCars } = await supabase
+    const { data: existingCars, error: carsError } = await supabase
       .from('cars')
       .select('id')
-      .limit(1)
-      .catch(() => ({ data: null }));
+      .limit(1);
+    
+    // Jika ada error, berarti tabel mungkin belum ada
+    if (carsError) {
+      console.log('Cars table does not exist yet. Please create it in Supabase dashboard.');
+      toast({
+        title: "Database Setup Required",
+        description: "Please set up the database tables in Supabase dashboard first.",
+        variant: "destructive"
+      });
+      return false;
+    }
     
     // Jika tabel cars ada tapi kosong, tambahkan data contoh
-    if (existingCars !== null && existingCars.length === 0) {
+    if (existingCars && existingCars.length === 0) {
       console.log('Adding sample cars...');
       await addSampleCars();
     }
