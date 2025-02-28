@@ -30,11 +30,27 @@ const Login = () => {
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Email atau password salah",
-        variant: "destructive"
-      });
+      
+      // Pesan khusus untuk email yang belum dikonfirmasi
+      if (error.code === 'email_not_confirmed') {
+        toast({
+          title: "Email Belum Dikonfirmasi",
+          description: "Mohon cek inbox email Anda dan klik link konfirmasi yang telah dikirim. Jika tidak menerima email, silakan mendaftar ulang.",
+          variant: "destructive"
+        });
+      } else if (error.code === 'invalid_credentials') {
+        toast({
+          title: "Error",
+          description: "Email atau password salah",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Terjadi kesalahan saat login",
+          variant: "destructive"
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -59,7 +75,7 @@ const Login = () => {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 rounded-md border bg-background"
               required
-              placeholder="nama@example.com"
+              placeholder="nama@gmail.com"
             />
           </div>
           <div>
@@ -89,6 +105,14 @@ const Login = () => {
             Daftar disini
           </Link>
         </p>
+        
+        <div className="mt-8 p-4 bg-muted rounded-md">
+          <h3 className="font-medium text-sm mb-2">Catatan Penting:</h3>
+          <p className="text-xs text-muted-foreground">
+            Setelah mendaftar, Anda harus mengkonfirmasi email Anda dengan mengklik link yang dikirim ke alamat email Anda.
+            Jika menggunakan Supabase di lingkungan pengembangan, email konfirmasi mungkin tidak terkirim dan Anda perlu mengaktifkan akun secara manual di Dashboard Supabase.
+          </p>
+        </div>
       </div>
     </div>
   );
