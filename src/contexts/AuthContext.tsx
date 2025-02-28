@@ -118,10 +118,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
     } else {
       // Create new user entry if not exists
+      // Determine role based on email - if contains 'admin', set role to 'admin'
+      const userEmail = supabaseUser.email || '';
+      const userRole = userEmail.toLowerCase().includes('admin') ? 'admin' : 'user';
+      
       const newUserData: Omit<UserData, 'id' | 'created_at'> = {
-        email: supabaseUser.email || '',
-        role: 'user',
+        email: userEmail,
+        role: userRole,
       };
+      
+      console.log(`Creating new user with role: ${userRole} for email: ${userEmail}`);
       
       // Insert new user into database
       const { data, error } = await supabase
@@ -136,11 +142,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (!prev) return null;
           return { 
             ...prev, 
-            role: 'user' 
+            role: userRole // Still set the role based on email
           };
         });
       } else if (data) {
-        console.log('Created new user with role: user');
+        console.log(`Created new user with role: ${data.role}`);
         setUser(prev => {
           if (!prev) return null;
           return { 
@@ -166,8 +172,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       if (data.user) {
-        // New user data will be created by the auth state change listener
-        console.log('User registered:', data.user.id);
+        // Sekarang kita akan membuat entri user setelah pendaftaran
+        // Tentukan role berdasarkan email
+        const userRole = email.toLowerCase().includes('admin') ? 'admin' : 'user';
+        console.log(`Registered user with email ${email}, setting role to ${userRole}`);
+        
+        // Buat entri user baru dengan role yang sesuai
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert([{ 
+            id: data.user.id, 
+            email: email,
+            role: userRole
+          }]);
+          
+        if (insertError) {
+          console.error('Error creating user data after registration:', insertError);
+        } else {
+          console.log(`User data created with role: ${userRole}`);
+        }
       }
     } catch (error) {
       console.error('Registration error:', error);
