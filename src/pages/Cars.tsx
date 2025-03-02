@@ -5,11 +5,13 @@ import { getCars } from '../lib/api';
 import { Car } from '../lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const Cars = () => {
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filterTransmission, setFilterTransmission] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('price-asc');
@@ -27,6 +29,7 @@ const Cars = () => {
   const fetchCars = async () => {
     try {
       setLoading(true);
+      setError(null);
       const filters = {
         transmission: filterTransmission,
         category: filterCategory,
@@ -37,12 +40,25 @@ const Cars = () => {
       setCars(result.data);
       setTotalPages(result.totalPages);
       setTotalCars(result.count);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error fetching cars:", error);
+      
+      // Check if the error is about missing table
+      if (error.message && error.message.includes("relation") && error.message.includes("does not exist")) {
+        setError("Tabel 'cars' belum dibuat. Silakan hubungi admin untuk membuat tabel.");
+      } else {
+        setError("Gagal memuat data mobil. " + (error.message || ""));
+      }
+      
       toast({
         title: "Error",
         description: "Gagal memuat data mobil",
         variant: "destructive"
       });
+      
+      setCars([]);
+      setTotalPages(0);
+      setTotalCars(0);
     } finally {
       setLoading(false);
     }
@@ -126,7 +142,19 @@ const Cars = () => {
     return pages;
   };
 
-  if (loading && currentPage === 1) {
+  const renderErrorMessage = () => {
+    if (!error) return null;
+    
+    return (
+      <Alert variant="destructive" className="mb-8">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  };
+
+  if (loading && currentPage === 1 && !error) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center items-center min-h-[400px]">
@@ -139,6 +167,8 @@ const Cars = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold mb-8">Koleksi Mobil Kami</h1>
+      
+      {renderErrorMessage()}
       
       {/* Filters */}
       <div className="mb-8 flex flex-wrap gap-4">
@@ -189,8 +219,9 @@ const Cars = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       ) : cars.length === 0 ? (
-        <div className="text-center py-8">
-          <p>Tidak ada mobil yang tersedia</p>
+        <div className="text-center py-12 border rounded-lg">
+          <p className="text-xl">Tidak ada mobil yang tersedia</p>
+          {error && <p className="text-sm text-muted-foreground mt-2">Silakan hubungi administrator</p>}
         </div>
       ) : (
         <>

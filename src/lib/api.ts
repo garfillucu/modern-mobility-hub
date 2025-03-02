@@ -1,5 +1,38 @@
+
 import { supabase } from './supabase';
 import { Car } from './supabase';
+
+// Fungsi untuk memeriksa dan membuat tabel cars jika belum ada
+export const createCarsTable = async () => {
+  try {
+    // Cek apakah tabel cars sudah ada
+    const { error: checkError } = await supabase
+      .from('cars')
+      .select('id')
+      .limit(1);
+    
+    if (checkError && checkError.code === '42P01') {
+      console.log('Cars table does not exist, creating it...');
+      
+      // Jalankan SQL untuk membuat tabel cars
+      const { error: createError } = await supabase.rpc('create_cars_table');
+      
+      if (createError) {
+        console.error('Error creating cars table:', createError);
+        return false;
+      }
+      
+      console.log('Cars table created successfully!');
+      return true;
+    } else {
+      console.log('Cars table already exists');
+      return true;
+    }
+  } catch (error) {
+    console.error('Error checking/creating cars table:', error);
+    return false;
+  }
+};
 
 // Fungsi untuk mendapatkan daftar mobil dengan pagination
 export const getCars = async (page = 1, limit = 9, filters = {}) => {
@@ -137,4 +170,58 @@ export const uploadCarImage = async (file: File, fileName?: string) => {
     .getPublicUrl(`cars/${storageFileName}`);
     
   return publicUrl;
+};
+
+// Fungsi untuk mendapatkan SQL untuk membuat tabel cars
+export const getCreateCarsSql = () => {
+  return `
+-- Buat tabel cars
+CREATE TABLE public.cars (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  brand TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  pricePerDay INTEGER NOT NULL,
+  transmission TEXT DEFAULT 'Manual',
+  capacity INTEGER DEFAULT 4,
+  category TEXT DEFAULT 'MPV',
+  description TEXT,
+  features JSONB DEFAULT '[]'::jsonb,
+  imageUrl TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Aktifkan extension jika belum
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Tambahkan function untuk create_cars_table
+CREATE OR REPLACE FUNCTION create_cars_table()
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Buat tabel cars jika belum ada
+  CREATE TABLE IF NOT EXISTS public.cars (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    brand TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    pricePerDay INTEGER NOT NULL,
+    transmission TEXT DEFAULT 'Manual',
+    capacity INTEGER DEFAULT 4,
+    category TEXT DEFAULT 'MPV',
+    description TEXT,
+    features JSONB DEFAULT '[]'::jsonb,
+    imageUrl TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  );
+  
+  -- Aktifkan extension jika belum
+  CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+  
+  RETURN TRUE;
+END;
+$$;
+  `;
 };
