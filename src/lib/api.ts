@@ -1,20 +1,57 @@
-
 import { supabase } from './supabase';
 import { Car } from './supabase';
 
-// Fungsi untuk mendapatkan daftar mobil
-export const getCars = async () => {
-  const { data, error } = await supabase
+// Fungsi untuk mendapatkan daftar mobil dengan pagination
+export const getCars = async (page = 1, limit = 9, filters = {}) => {
+  const { transmission, category, sortBy } = filters as {
+    transmission?: string;
+    category?: string;
+    sortBy?: string;
+  };
+  
+  // Calculate offset
+  const offset = (page - 1) * limit;
+  
+  // Start building query
+  let query = supabase
     .from('cars')
-    .select('*')
-    .order('name');
+    .select('*', { count: 'exact' });
+    
+  // Apply filters
+  if (transmission && transmission !== 'all') {
+    query = query.eq('transmission', transmission);
+  }
+  
+  if (category && category !== 'all') {
+    query = query.eq('category', category);
+  }
+  
+  // Apply sorting
+  if (sortBy === 'price-asc') {
+    query = query.order('pricePerDay', { ascending: true });
+  } else if (sortBy === 'price-desc') {
+    query = query.order('pricePerDay', { ascending: false });
+  } else {
+    query = query.order('name');
+  }
+  
+  // Apply pagination
+  query = query.range(offset, offset + limit - 1);
+  
+  // Execute query
+  const { data, error, count } = await query;
     
   if (error) {
     console.error('Error fetching cars:', error);
     throw error;
   }
   
-  return data as Car[];
+  return {
+    data: data as Car[],
+    count: count || 0,
+    totalPages: count ? Math.ceil(count / limit) : 0,
+    currentPage: page
+  };
 };
 
 // Fungsi untuk mendapatkan detail mobil berdasarkan ID

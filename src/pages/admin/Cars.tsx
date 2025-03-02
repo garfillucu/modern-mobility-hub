@@ -4,17 +4,25 @@ import { Link } from 'react-router-dom';
 import { getCars, deleteCar } from '@/lib/api';
 import { Car } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
-import { Plus, Pencil, Trash } from 'lucide-react';
+import { Plus, Pencil, Trash, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const AdminCars = () => {
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCars, setTotalCars] = useState(0);
+  const carsPerPage = 10; // Show 10 cars per page in admin panel
 
-  const fetchCars = async () => {
+  const fetchCars = async (page = 1) => {
     try {
       setLoading(true);
-      const data = await getCars();
-      setCars(data);
+      const result = await getCars(page, carsPerPage);
+      setCars(result.data);
+      setTotalPages(result.totalPages);
+      setTotalCars(result.count);
+      setCurrentPage(page);
     } catch (error) {
       toast({
         title: "Error",
@@ -27,15 +35,16 @@ const AdminCars = () => {
   };
 
   useEffect(() => {
-    fetchCars();
-  }, []);
+    fetchCars(currentPage);
+  }, [currentPage]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Anda yakin ingin menghapus mobil ini?')) return;
     
     try {
       await deleteCar(id);
-      setCars(cars.filter(car => car.id !== id));
+      // Refresh the current page
+      fetchCars(currentPage);
       toast({
         title: "Sukses",
         description: "Mobil berhasil dihapus",
@@ -49,7 +58,40 @@ const AdminCars = () => {
     }
   };
 
-  if (loading) {
+  const renderPagination = () => {
+    return (
+      <div className="flex items-center justify-between mt-4">
+        <div className="text-sm text-muted-foreground">
+          Menampilkan {cars.length} dari {totalCars} mobil
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => prev - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <span className="text-sm">
+            Halaman {currentPage} dari {totalPages}
+          </span>
+          
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => prev + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading && currentPage === 1) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center items-center min-h-[400px]">
@@ -93,7 +135,7 @@ const AdminCars = () => {
                 </tr>
               ) : (
                 cars.map((car) => (
-                  <tr key={car.id} className="border-b">
+                  <tr key={car.id} className="border-b hover:bg-muted/20 transition-colors">
                     <td className="p-4">{car.name}</td>
                     <td className="p-4">{car.brand}</td>
                     <td className="p-4">{car.year}</td>
@@ -122,6 +164,13 @@ const AdminCars = () => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t">
+            {renderPagination()}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -4,7 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getCarById, addCar, updateCar, uploadCarImage } from '@/lib/api';
 import { Car } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
-import { ArrowLeft, Upload } from 'lucide-react';
+import { ArrowLeft, Upload, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const CarForm = () => {
   const { id } = useParams<{ id: string }>();
@@ -146,7 +147,10 @@ const CarForm = () => {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center items-center min-h-[400px]">
-          <p>Loading...</p>
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p>Loading...</p>
+          </div>
         </div>
       </div>
     );
@@ -155,13 +159,14 @@ const CarForm = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
-        <button
+        <Button
+          variant="ghost"
           onClick={() => navigate('/admin/cars')}
           className="mb-6 flex items-center gap-2 text-primary hover:underline"
         >
           <ArrowLeft size={16} />
           Kembali
-        </button>
+        </Button>
 
         <h1 className="text-3xl font-bold mb-6">
           {isEditMode ? 'Edit Mobil' : 'Tambah Mobil Baru'}
@@ -341,20 +346,26 @@ const CarForm = () => {
           </div>
           
           <div className="flex justify-end gap-4">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => navigate('/admin/cars')}
-              className="px-4 py-2 border rounded-md hover:bg-accent transition-colors"
             >
               Batal
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {submitting ? 'Menyimpan...' : (isEditMode ? 'Perbarui Mobil' : 'Tambah Mobil')}
-            </button>
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                isEditMode ? 'Perbarui Mobil' : 'Tambah Mobil'
+              )}
+            </Button>
           </div>
         </form>
       </div>
