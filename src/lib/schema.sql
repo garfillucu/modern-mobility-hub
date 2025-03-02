@@ -29,3 +29,25 @@ CREATE TABLE IF NOT EXISTS cars (
 CREATE INDEX IF NOT EXISTS cars_brand_idx ON cars (brand);
 CREATE INDEX IF NOT EXISTS cars_transmission_idx ON cars (transmission);
 CREATE INDEX IF NOT EXISTS cars_category_idx ON cars (category);
+
+-- Membuat fungsi untuk eksekusi SQL dinamis (digunakan untuk pembuatan tabel)
+CREATE OR REPLACE FUNCTION execute_sql(sql_query text)
+RETURNS void AS $$
+BEGIN
+  EXECUTE sql_query;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Membuat fungsi untuk pembuatan tabel users
+CREATE OR REPLACE FUNCTION create_users_table()
+RETURNS void AS $$
+BEGIN
+  CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
