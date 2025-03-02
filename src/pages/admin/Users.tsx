@@ -33,42 +33,35 @@ const Users = () => {
         console.log('Creating users table as it does not exist');
         setTableExists(false);
         
-        // Try direct SQL as primary method (more reliable)
-        const { error: sqlError } = await supabase.rpc('execute_sql', {
-          sql_query: `
-            CREATE TABLE IF NOT EXISTS users (
-              id UUID PRIMARY KEY,
-              email TEXT UNIQUE NOT NULL,
-              role TEXT NOT NULL DEFAULT 'user',
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
-          `
-        });
-        
-        if (sqlError) {
-          console.error('Failed to create users table via SQL:', sqlError);
-          
-          // Try fallback RPC method
-          const { error: createError } = await supabase.rpc('create_users_table');
-          
-          if (createError) {
-            console.error('Error creating users table via RPC:', createError);
-            toast({
-              title: "Database Error",
-              description: "Could not create users table. Please create it manually in Supabase.",
-              variant: "destructive"
-            });
-            setCreatingTable(false);
-            return false;
-          } else {
-            console.log('Users table created successfully via RPC');
-            setTableExists(true);
-            setCreatingTable(false);
-            return true;
+        // Create the users table directly using SQL
+        const { error: directSqlError } = await supabase.rpc(
+          'pg_dump_createtable', 
+          { 
+            query: `
+              CREATE TABLE public.users (
+                id UUID PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+              );
+              CREATE INDEX IF NOT EXISTS users_email_idx ON public.users (email);
+            `
           }
+        );
+        
+        if (directSqlError) {
+          console.error('Failed to create users table via direct SQL:', directSqlError);
+          
+          // Jika masih gagal, beritahu pengguna untuk membuat tabel secara manual
+          toast({
+            title: "Database Error",
+            description: "Tidak dapat membuat tabel users. Silahkan buat secara manual di Supabase.",
+            variant: "destructive"
+          });
+          setCreatingTable(false);
+          return false;
         } else {
-          console.log('Users table created successfully via SQL');
+          console.log('Users table created successfully via direct SQL');
           setTableExists(true);
           setCreatingTable(false);
           return true;
@@ -120,12 +113,34 @@ const Users = () => {
 
   const createUserTableManually = async () => {
     try {
-      await ensureUsersTableExists();
-      toast({
-        title: "Sukses",
-        description: "Tabel users berhasil dibuat",
-      });
-      await fetchUsers();
+      setCreatingTable(true);
+      
+      // Buat tabel users langsung menggunakan SQL
+      const { error } = await supabase.sql(`
+        CREATE TABLE IF NOT EXISTS public.users (
+          id UUID PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL,
+          role TEXT NOT NULL DEFAULT 'user',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS users_email_idx ON public.users (email);
+      `);
+      
+      if (error) {
+        console.error('Error creating table via direct SQL:', error);
+        toast({
+          title: "Error",
+          description: "Gagal membuat tabel users: " + error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Sukses",
+          description: "Tabel users berhasil dibuat",
+        });
+        setTableExists(true);
+        await fetchUsers();
+      }
     } catch (error: any) {
       console.error('Error creating table:', error);
       toast({
@@ -133,6 +148,8 @@ const Users = () => {
         description: "Gagal membuat tabel users: " + error.message,
         variant: "destructive"
       });
+    } finally {
+      setCreatingTable(false);
     }
   };
 

@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
@@ -42,37 +41,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error && error.code === '42P01') { // Table does not exist error code
         console.log('Creating users table as it does not exist');
         
-        // Create the users table
-        const { error: createError } = await supabase.rpc('create_users_table');
+        // Create the users table directly using SQL
+        const { error: sqlError } = await supabase.sql(`
+          CREATE TABLE IF NOT EXISTS public.users (
+            id UUID PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            role TEXT NOT NULL DEFAULT 'user',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE INDEX IF NOT EXISTS users_email_idx ON public.users (email);
+        `);
         
-        if (createError) {
-          console.error('Error creating users table:', createError);
-          
-          // Try direct SQL as fallback
-          const { error: sqlError } = await supabase.rpc('execute_sql', {
-            sql_query: `
-              CREATE TABLE IF NOT EXISTS users (
-                id UUID PRIMARY KEY,
-                email TEXT UNIQUE NOT NULL,
-                role TEXT NOT NULL DEFAULT 'user',
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-              );
-              CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
-            `
+        if (sqlError) {
+          console.error('Failed to create users table via SQL:', sqlError);
+          toast({
+            title: "Database Error",
+            description: "Tidak dapat membuat tabel users. Silahkan buat secara manual di Supabase.",
+            variant: "destructive"
           });
-          
-          if (sqlError) {
-            console.error('Failed to create users table via SQL:', sqlError);
-            toast({
-              title: "Database Error",
-              description: "Could not create users table. Please create it manually in Supabase.",
-              variant: "destructive"
-            });
-          } else {
-            console.log('Users table created successfully via SQL');
-          }
         } else {
-          console.log('Users table created successfully');
+          console.log('Users table created successfully via SQL');
         }
       }
     } catch (error) {
