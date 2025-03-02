@@ -30,7 +30,7 @@ const Users = () => {
         .limit(1);
 
       if (error && error.code === '42P01') { // Table does not exist error code
-        console.log('Creating users table as it does not exist');
+        console.log('Users table does not exist');
         setTableExists(false);
         setCreatingTable(false);
         return false;
@@ -38,7 +38,7 @@ const Users = () => {
       setCreatingTable(false);
       return true;
     } catch (error) {
-      console.error('Error checking/creating users table:', error);
+      console.error('Error checking users table:', error);
       setCreatingTable(false);
       return false;
     }
@@ -83,24 +83,18 @@ const Users = () => {
     try {
       setCreatingTable(true);
       
-      // Kita akan menggunakan RPC yang sudah dikonfigurasi di Supabase
-      const { error } = await supabase.rpc('create_users_table');
+      // Membuat tabel users menggunakan execute SQL dari Supabase Dashboard
+      toast({
+        title: "Informasi",
+        description: "Untuk membuat tabel users, silakan gunakan SQL editor di Supabase Dashboard dan jalankan perintah yang ditampilkan.",
+      });
       
-      if (error) {
-        console.error('Error creating table via RPC:', error);
-        toast({
-          title: "Error",
-          description: "Gagal membuat tabel users: " + error.message + ". Silakan buat manual melalui Supabase dashboard.",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Sukses",
-          description: "Tabel users berhasil dibuat",
-        });
-        setTableExists(true);
-        await fetchUsers();
-      }
+      // Tampilkan instruksi dan disable button selama beberapa detik
+      setTimeout(() => {
+        setCreatingTable(false);
+        fetchUsers(); // Cek lagi apakah tabel sudah ada
+      }, 3000);
+      
     } catch (error: any) {
       console.error('Error creating table:', error);
       toast({
@@ -108,7 +102,6 @@ const Users = () => {
         description: "Gagal membuat tabel users: " + error.message + ". Buat tabel secara manual melalui Supabase dashboard.",
         variant: "destructive"
       });
-    } finally {
       setCreatingTable(false);
     }
   };

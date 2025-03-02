@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
@@ -39,18 +40,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .limit(1);
 
       if (error && error.code === '42P01') { // Table does not exist error code
-        console.log('Creating users table as it does not exist');
+        console.log('Users table does not exist');
         
-        // Karena metode sql() tidak tersedia, kita akan menampilkan pesan untuk membuat tabel secara manual
-        console.error('Failed to create users table: sql method not available');
         toast({
           title: "Database Error",
           description: "Tabel users belum tersedia. Silakan buat tabel users di dashboard Supabase atau gunakan halaman Admin Users untuk membuat tabel secara otomatis.",
           variant: "destructive"
         });
+        
+        return false;
       }
+      
+      return true;
     } catch (error) {
-      console.error('Error checking/creating users table:', error);
+      console.error('Error checking users table:', error);
+      return false;
     }
   };
 
@@ -58,7 +62,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchUserData = async (userId: string): Promise<UserData | null> => {
     try {
       // Ensure users table exists before querying
-      await ensureUsersTableExists();
+      const tableExists = await ensureUsersTableExists();
+      if (!tableExists) {
+        return null;
+      }
       
       console.log('Fetching user data from Supabase for', userId);
       const { data, error } = await supabase
