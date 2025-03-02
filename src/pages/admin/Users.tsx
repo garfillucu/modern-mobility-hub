@@ -32,40 +32,8 @@ const Users = () => {
       if (error && error.code === '42P01') { // Table does not exist error code
         console.log('Creating users table as it does not exist');
         setTableExists(false);
-        
-        // Create the users table directly using SQL
-        const { error: directSqlError } = await supabase.rpc(
-          'pg_dump_createtable', 
-          { 
-            query: `
-              CREATE TABLE public.users (
-                id UUID PRIMARY KEY,
-                email TEXT UNIQUE NOT NULL,
-                role TEXT NOT NULL DEFAULT 'user',
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-              );
-              CREATE INDEX IF NOT EXISTS users_email_idx ON public.users (email);
-            `
-          }
-        );
-        
-        if (directSqlError) {
-          console.error('Failed to create users table via direct SQL:', directSqlError);
-          
-          // Jika masih gagal, beritahu pengguna untuk membuat tabel secara manual
-          toast({
-            title: "Database Error",
-            description: "Tidak dapat membuat tabel users. Silahkan buat secara manual di Supabase.",
-            variant: "destructive"
-          });
-          setCreatingTable(false);
-          return false;
-        } else {
-          console.log('Users table created successfully via direct SQL');
-          setTableExists(true);
-          setCreatingTable(false);
-          return true;
-        }
+        setCreatingTable(false);
+        return false;
       }
       setCreatingTable(false);
       return true;
@@ -115,22 +83,14 @@ const Users = () => {
     try {
       setCreatingTable(true);
       
-      // Buat tabel users langsung menggunakan SQL
-      const { error } = await supabase.sql(`
-        CREATE TABLE IF NOT EXISTS public.users (
-          id UUID PRIMARY KEY,
-          email TEXT UNIQUE NOT NULL,
-          role TEXT NOT NULL DEFAULT 'user',
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE INDEX IF NOT EXISTS users_email_idx ON public.users (email);
-      `);
+      // Kita akan menggunakan RPC yang sudah dikonfigurasi di Supabase
+      const { error } = await supabase.rpc('create_users_table');
       
       if (error) {
-        console.error('Error creating table via direct SQL:', error);
+        console.error('Error creating table via RPC:', error);
         toast({
           title: "Error",
-          description: "Gagal membuat tabel users: " + error.message,
+          description: "Gagal membuat tabel users: " + error.message + ". Silakan buat manual melalui Supabase dashboard.",
           variant: "destructive"
         });
       } else {
@@ -145,7 +105,7 @@ const Users = () => {
       console.error('Error creating table:', error);
       toast({
         title: "Error",
-        description: "Gagal membuat tabel users: " + error.message,
+        description: "Gagal membuat tabel users: " + error.message + ". Buat tabel secara manual melalui Supabase dashboard.",
         variant: "destructive"
       });
     } finally {
@@ -226,8 +186,17 @@ const Users = () => {
         <div className="bg-destructive/10 p-6 rounded-md">
           <h2 className="text-lg font-semibold text-destructive">Database Error</h2>
           <p className="mt-2">
-            Tabel user belum tersedia. Silakan buat tabel "users" di dashboard Supabase atau klik tombol di bawah untuk mencoba membuat tabel secara otomatis.
+            Tabel user belum tersedia. Silakan buat tabel "users" di dashboard Supabase dengan struktur berikut:
           </p>
+          <pre className="mt-2 p-3 bg-muted rounded-md text-sm overflow-x-auto">
+{`CREATE TABLE public.users (
+  id UUID PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  role TEXT NOT NULL DEFAULT 'user',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX users_email_idx ON public.users (email);`}
+          </pre>
           <div className="mt-4 space-x-2">
             <Button 
               onClick={createUserTableManually}
@@ -237,10 +206,10 @@ const Users = () => {
               {creatingTable ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Membuat Tabel...
+                  Mencoba Membuat Tabel...
                 </>
               ) : (
-                'Buat Tabel Users'
+                'Coba Buat Tabel Users'
               )}
             </Button>
             <Button 

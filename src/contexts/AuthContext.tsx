@@ -41,27 +41,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error && error.code === '42P01') { // Table does not exist error code
         console.log('Creating users table as it does not exist');
         
-        // Create the users table directly using SQL
-        const { error: sqlError } = await supabase.sql(`
-          CREATE TABLE IF NOT EXISTS public.users (
-            id UUID PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            role TEXT NOT NULL DEFAULT 'user',
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-          );
-          CREATE INDEX IF NOT EXISTS users_email_idx ON public.users (email);
-        `);
-        
-        if (sqlError) {
-          console.error('Failed to create users table via SQL:', sqlError);
-          toast({
-            title: "Database Error",
-            description: "Tidak dapat membuat tabel users. Silahkan buat secara manual di Supabase.",
-            variant: "destructive"
-          });
-        } else {
-          console.log('Users table created successfully via SQL');
-        }
+        // Karena metode sql() tidak tersedia, kita akan menampilkan pesan untuk membuat tabel secara manual
+        console.error('Failed to create users table: sql method not available');
+        toast({
+          title: "Database Error",
+          description: "Tabel users belum tersedia. Silakan buat tabel users di dashboard Supabase atau gunakan halaman Admin Users untuk membuat tabel secara otomatis.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error checking/creating users table:', error);

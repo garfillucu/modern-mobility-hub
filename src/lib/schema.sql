@@ -1,4 +1,21 @@
 
+-- Membuat fungsi untuk membuat tabel users
+CREATE OR REPLACE FUNCTION create_users_table()
+RETURNS void AS $$
+BEGIN
+  -- Membuat tabel users jika belum ada
+  CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  );
+  
+  -- Membuat indeks pada kolom email untuk mempercepat pencarian
+  CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);
+END;
+$$ LANGUAGE plpgsql;
+
 -- Membuat tabel users
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
