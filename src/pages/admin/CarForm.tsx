@@ -1,6 +1,6 @@
 
 import { useState, useEffect, ChangeEvent } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getCarById, addCar, updateCar, uploadCarImage } from '@/lib/api';
 import { Car } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 const CarForm = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const isEditMode = !!id;
+  const location = useLocation();
+  const isEditMode = !!id && id !== ':id';
   
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -30,22 +31,26 @@ const CarForm = () => {
   });
 
   useEffect(() => {
+    console.log('CarForm mounted, edit mode:', isEditMode, 'id:', id);
     if (isEditMode) {
       fetchCar();
     }
-  }, [id]);
+  }, [id, isEditMode]);
 
   const fetchCar = async () => {
-    if (!id) return;
+    if (!id || id === ':id') return;
     
     try {
       setLoading(true);
+      console.log('Fetching car with ID:', id);
       const car = await getCarById(id);
+      console.log('Car data fetched:', car);
       setFormData(car);
       if (car.imageUrl) {
         setImagePreview(car.imageUrl);
       }
     } catch (error) {
+      console.error('Error fetching car:', error);
       toast({
         title: "Error",
         description: "Gagal memuat data mobil",
@@ -133,6 +138,7 @@ const CarForm = () => {
       
       navigate('/admin/cars');
     } catch (error) {
+      console.error('Error submitting car form:', error);
       toast({
         title: "Error",
         description: isEditMode ? "Gagal memperbarui mobil" : "Gagal menambahkan mobil",

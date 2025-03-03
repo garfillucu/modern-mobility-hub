@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getCars, deleteCar, createCarsTable, getCreateCarsSql } from '@/lib/api';
 import { Car } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
@@ -9,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const AdminCars = () => {
+  const navigate = useNavigate();
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +22,9 @@ const AdminCars = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('Fetching cars, page:', page);
       const result = await getCars(page, carsPerPage);
+      console.log('Cars fetched:', result);
       setCars(result.data);
       setTotalPages(result.totalPages);
       setTotalCars(result.count);
@@ -51,6 +53,7 @@ const AdminCars = () => {
   };
 
   useEffect(() => {
+    console.log('AdminCars component mounted');
     fetchCars(currentPage);
   }, [currentPage]);
 
@@ -194,13 +197,13 @@ const AdminCars = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Manajemen Mobil</h1>
-        <Link 
-          to="/admin/cars/add" 
+        <Button 
+          onClick={() => navigate('/admin/cars/add')} 
           className="bg-primary text-primary-foreground px-4 py-2 rounded-md flex items-center gap-2"
         >
           <Plus size={16} />
           Tambah Mobil
-        </Link>
+        </Button>
       </div>
 
       {renderErrorMessage()}
@@ -235,18 +238,22 @@ const AdminCars = () => {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <Link
-                          to={`/admin/cars/edit/${car.id}`}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/admin/cars/edit/${car.id}`)}
                           className="text-primary hover:underline flex items-center"
                         >
                           <Pencil size={16} />
-                        </Link>
-                        <button
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleDelete(car.id)}
                           className="text-destructive hover:underline flex items-center"
                         >
                           <Trash size={16} />
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
