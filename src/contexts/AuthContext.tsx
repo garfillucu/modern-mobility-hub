@@ -161,43 +161,63 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         };
       });
     } else {
-      // Create new user entry if not exists
-      // Determine role based on email - if contains 'admin', set role to 'admin'
-      const userEmail = supabaseUser.email || '';
-      const userRole = userEmail.toLowerCase().includes('admin') ? 'admin' : 'user';
-      
-      const newUserData: Omit<UserData, 'id' | 'created_at'> = {
-        email: userEmail,
-        role: userRole,
-      };
-      
-      console.log(`Creating new user with role: ${userRole} for email: ${userEmail}`);
-      
-      // Insert new user into database
-      const { data, error } = await supabase
+      // Check if this user was deleted from the users table
+      // If so, we don't want to recreate their entry
+      const { data: deletionCheck, error: deletionError } = await supabase
         .from('users')
-        .insert([{ id: supabaseUser.id, ...newUserData }])
-        .select()
-        .single();
+        .select('id')
+        .eq('id', supabaseUser.id);
+      
+      if (!deletionError && (!deletionCheck || deletionCheck.length === 0)) {
+        // Create new user entry if not exists
+        // Determine role based on email - if contains 'admin', set role to 'admin'
+        const userEmail = supabaseUser.email || '';
+        const userRole = userEmail.toLowerCase().includes('admin') ? 'admin' : 'user';
         
-      if (error) {
-        console.error('Error creating user data:', error);
-        setUser(prev => {
-          if (!prev) return null;
-          return { 
-            ...prev, 
-            role: userRole // Still set the role based on email
-          };
+        const newUserData: Omit<UserData, 'id' | 'created_at'> = {
+          email: userEmail,
+          role: userRole,
+        };
+        
+        console.log(`Creating new user with role: ${userRole} for email: ${userEmail}`);
+        
+        // Insert new user into database
+        const { data, error } = await supabase
+          .from('users')
+          .insert([{ id: supabaseUser.id, ...newUserData }])
+          .select()
+          .single();
+          
+        if (error) {
+          console.error('Error creating user data:', error);
+          setUser(prev => {
+            if (!prev) return null;
+            return { 
+              ...prev, 
+              role: userRole // Still set the role based on email
+            };
+          });
+        } else if (data) {
+          console.log(`Created new user with role: ${data.role}`);
+          setUser(prev => {
+            if (!prev) return null;
+            return { 
+              ...prev, 
+              role: data.role 
+            };
+          });
+        }
+      } else {
+        // User might have been deleted from the 'users' table
+        // But still has Supabase Auth - restrict access
+        toast({
+          title: "Account Restricted",
+          description: "Your account has been restricted. Please contact an administrator.",
+          variant: "destructive"
         });
-      } else if (data) {
-        console.log(`Created new user with role: ${data.role}`);
-        setUser(prev => {
-          if (!prev) return null;
-          return { 
-            ...prev, 
-            role: data.role 
-          };
-        });
+        // Force logout
+        await supabase.auth.signOut();
+        setUser(null);
       }
     }
     

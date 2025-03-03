@@ -1,8 +1,10 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface User {
   id: string;
@@ -16,6 +18,7 @@ const Users = () => {
   const [loading, setLoading] = useState(true);
   const [tableExists, setTableExists] = useState(true);
   const [creatingTable, setCreatingTable] = useState(false);
+  const { user: currentUser } = useAuth();
 
   // Function to ensure the users table exists
   const ensureUsersTableExists = async () => {
@@ -108,6 +111,33 @@ const Users = () => {
 
   const handleRoleChange = async (userId: string, newRole: 'user' | 'admin') => {
     try {
+      // Check if current user is admin
+      if (currentUser?.role !== 'admin') {
+        toast({
+          title: "Akses Ditolak",
+          description: "Hanya admin yang dapat mengubah role user",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Get the user we're trying to modify
+      const { data: userToModify } = await supabase
+        .from('users')
+        .select('role, email')
+        .eq('id', userId)
+        .single();
+      
+      // Don't allow changing admin roles
+      if (userToModify?.role === 'admin') {
+        toast({
+          title: "Akses Ditolak",
+          description: "Role admin tidak dapat diubah",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       const { error } = await supabase
         .from('users')
         .update({ role: newRole })
@@ -134,9 +164,46 @@ const Users = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Anda yakin ingin menghapus user ini?')) return;
+    if (!confirm('Anda yakin ingin menghapus user ini? Penghapusan ini bersifat permanen.')) return;
     
     try {
+      // Check if current user is admin
+      if (currentUser?.role !== 'admin') {
+        toast({
+          title: "Akses Ditolak",
+          description: "Hanya admin yang dapat menghapus user",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Get the user we're trying to delete
+      const { data: userToDelete } = await supabase
+        .from('users')
+        .select('role, email')
+        .eq('id', userId)
+        .single();
+      
+      // Don't allow deleting admin users
+      if (userToDelete?.role === 'admin') {
+        toast({
+          title: "Akses Ditolak",
+          description: "Admin tidak dapat dihapus melalui panel ini",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // First delete from Supabase Auth
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+      
+      if (authError) {
+        console.error('Error deleting auth user:', authError);
+        // Continue with database deletion even if auth deletion fails
+        // This might happen if we only have the database record but auth record was already deleted
+      }
+      
+      // Then delete from users table
       const { error } = await supabase
         .from('users')
         .delete()
@@ -148,7 +215,7 @@ const Users = () => {
       
       toast({
         title: "Sukses",
-        description: "User berhasil dihapus",
+        description: "User berhasil dihapus secara permanen",
       });
     } catch (error: any) {
       console.error('Error deleting user:', error);
@@ -255,25 +322,35 @@ CREATE INDEX users_email_idx ON public.users (email);`}
                   <tr key={user.id} className="border-b hover:bg-muted/20 transition-colors">
                     <td className="p-4">{user.email}</td>
                     <td className="p-4">
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user.id, e.target.value as 'user' | 'admin')}
-                        className="bg-background border rounded px-2 py-1"
-                      >
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                      </select>
+                      {user.role === 'admin' ? (
+                        <span className="bg-primary/10 text-primary px-2 py-1 rounded text-sm font-medium">
+                          Admin
+                        </span>
+                      ) : (
+                        <select
+                          value={user.role}
+                          onChange={(e) => handleRoleChange(user.id, e.target.value as 'user' | 'admin')}
+                          className="bg-background border rounded px-2 py-1"
+                          disabled={currentUser?.role !== 'admin'}
+                        >
+                          <option value="user">User</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      )}
                     </td>
                     <td className="p-4">
                       {new Date(user.created_at).toLocaleDateString('id-ID')}
                     </td>
                     <td className="p-4">
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="text-destructive hover:underline"
-                      >
-                        Hapus
-                      </button>
+                      {user.role !== 'admin' && (
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-destructive hover:underline"
+                          disabled={currentUser?.role !== 'admin'}
+                        >
+                          Hapus
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
