@@ -1,6 +1,7 @@
 
 import { supabase } from './supabase';
 import { toast } from '@/components/ui/use-toast';
+import { seedCarsData } from './api';
 
 // Fungsi untuk melakukan inisialisasi database
 export const initDatabase = async () => {
@@ -41,10 +42,17 @@ export const initDatabase = async () => {
       return false;
     }
     
-    // Jika tabel cars ada tapi kosong, tambahkan data contoh
-    if (existingCars && existingCars.length === 0) {
-      console.log('Adding sample cars...');
-      await addSampleCars();
+    // Jika tabel cars ada, cek apakah perlu seed data
+    if (!carsError) {
+      const { count } = await supabase
+        .from('cars')
+        .select('*', { count: 'exact' });
+        
+      // Jika tabel kosong atau hanya sedikit datanya, tambahkan seed data
+      if (!count || count < 5) {
+        console.log('Seeding cars data...');
+        await seedCarsData();
+      }
     }
     
     return true;
