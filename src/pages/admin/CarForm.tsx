@@ -1,4 +1,3 @@
-
 import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getCarById, addCar, updateCar, uploadCarImage } from '@/lib/api';
@@ -114,7 +113,20 @@ const CarForm = () => {
       // Upload image if selected
       let imageUrl = formData.imageUrl;
       if (imageFile) {
-        imageUrl = await uploadCarImage(imageFile);
+        try {
+          console.log('Attempting to upload image...');
+          imageUrl = await uploadCarImage(imageFile);
+          console.log('Image uploaded successfully:', imageUrl);
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          toast({
+            title: "Error",
+            description: "Gagal mengupload gambar mobil. Coba lagi nanti.",
+            variant: "destructive"
+          });
+          setSubmitting(false);
+          return;
+        }
       }
       
       const carData = {
@@ -139,9 +151,17 @@ const CarForm = () => {
       navigate('/admin/cars');
     } catch (error) {
       console.error('Error submitting car form:', error);
+      
+      // Tampilkan pesan error yang lebih spesifik berdasarkan tipe error
+      let errorMessage = "Gagal menambahkan mobil";
+      if (typeof error === 'object' && error !== null) {
+        // @ts-ignore
+        errorMessage = error.message || errorMessage;
+      }
+      
       toast({
         title: "Error",
-        description: isEditMode ? "Gagal memperbarui mobil" : "Gagal menambahkan mobil",
+        description: isEditMode ? `Gagal memperbarui mobil: ${errorMessage}` : `Gagal menambahkan mobil: ${errorMessage}`,
         variant: "destructive"
       });
     } finally {

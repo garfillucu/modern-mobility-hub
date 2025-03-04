@@ -207,23 +207,46 @@ export const deleteCar = async (id: string) => {
 
 // Fungsi untuk upload gambar
 export const uploadCarImage = async (file: File, fileName?: string) => {
-  const storageFileName = fileName || `${Date.now()}-${file.name}`;
-  
-  const { data, error } = await supabase.storage
-    .from('car-images')
-    .upload(`cars/${storageFileName}`, file);
+  try {
+    // Dapatkan user session untuk memastikan upload dilakukan dengan otorisasi yang benar
+    const { data: { session } } = await supabase.auth.getSession();
     
-  if (error) {
-    console.error('Error uploading image:', error);
+    if (!session) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Generate unique file name jika tidak disediakan
+    const storageFileName = fileName || `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
+    const filePath = `cars/${storageFileName}`;
+    
+    console.log('Uploading image with auth token...');
+    
+    // Upload file dengan explicit content-type
+    const { data, error } = await supabase.storage
+      .from('car-images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type,
+      });
+      
+    if (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+    
+    console.log('Upload successful, getting public URL');
+    
+    // Get public URL for the uploaded image
+    const { data: { publicUrl } } = supabase.storage
+      .from('car-images')
+      .getPublicUrl(filePath);
+      
+    return publicUrl;
+  } catch (error) {
+    console.error('Error in uploadCarImage:', error);
     throw error;
   }
-  
-  // Get public URL for the uploaded image
-  const { data: { publicUrl } } = supabase.storage
-    .from('car-images')
-    .getPublicUrl(`cars/${storageFileName}`);
-    
-  return publicUrl;
 };
 
 // Fungsi untuk mendapatkan SQL untuk membuat tabel cars
