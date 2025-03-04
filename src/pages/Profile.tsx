@@ -10,6 +10,16 @@ const Profile = () => {
     return <Navigate to="/login" />;
   }
 
+  // Memastikan role ditampilkan dengan konsisten
+  const userRole = user.role?.toLowerCase() === 'admin' ? 'Admin' : user.role || 'User';
+  
+  // Debug info
+  console.log("Profile - User data:", { 
+    email: user.email, 
+    role: user.role, 
+    displayRole: userRole 
+  });
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
@@ -24,8 +34,8 @@ const Profile = () => {
             <div>
               <span className="font-semibold">Role:</span>
               <span className="ml-2 capitalize flex items-center">
-                {user.role || 'user'} 
-                {user.role === 'admin' && (
+                {userRole} 
+                {userRole === 'Admin' && (
                   <Shield className="ml-2 h-4 w-4 text-primary" />
                 )}
               </span>

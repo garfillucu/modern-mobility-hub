@@ -23,10 +23,10 @@ const AdminLayout = () => {
           metadata: user.user_metadata
         });
         
-        // Check if the user has admin role (safely checking)
-        const hasAdminRole = user.role === 'admin';
+        // Check if the user has admin role - fix case sensitivity issue
+        const hasAdminRole = user.role?.toLowerCase() === 'admin';
         setIsAdmin(hasAdminRole);
-        console.log("User admin status:", hasAdminRole);
+        console.log("User admin status:", hasAdminRole, "Role value:", user.role);
       }
       
       setIsVerifying(false);
