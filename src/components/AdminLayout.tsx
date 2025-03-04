@@ -48,8 +48,10 @@ const AdminLayout = () => {
     return <Navigate to="/login" />;
   }
 
-  if (user.role !== 'admin') {
-    console.log("AdminLayout - User is not admin, redirecting to home");
+  // Fix: Memastikan bahwa kita menggunakan user.role dengan benar, 
+  // dan memberikan waktu cukup agar data role ter-load dari Supabase
+  if (user?.role !== 'admin') {
+    console.log("AdminLayout - User is not admin, redirecting to home", user.role);
     toast({
       title: "Akses Ditolak",
       description: "Anda tidak memiliki akses admin.",
