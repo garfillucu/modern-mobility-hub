@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/use-toast";
 const AdminLayout = () => {
   const { user, loading } = useAuth();
   const [isVerifying, setIsVerifying] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // Debug information
@@ -14,9 +15,6 @@ const AdminLayout = () => {
     
     // Once auth loading is done, we can verify the role
     if (!loading) {
-      setIsVerifying(false);
-      
-      // Log more detailed information about the user
       if (user) {
         console.log("User details:", { 
           id: user.id, 
@@ -24,7 +22,14 @@ const AdminLayout = () => {
           role: user.role,
           metadata: user.user_metadata
         });
+        
+        // Check if the user has admin role (safely checking)
+        const hasAdminRole = user.role === 'admin';
+        setIsAdmin(hasAdminRole);
+        console.log("User admin status:", hasAdminRole);
       }
+      
+      setIsVerifying(false);
     }
   }, [loading, user]);
 
@@ -48,10 +53,9 @@ const AdminLayout = () => {
     return <Navigate to="/login" />;
   }
 
-  // Fix: Memastikan bahwa kita menggunakan user.role dengan benar, 
-  // dan memberikan waktu cukup agar data role ter-load dari Supabase
-  if (user?.role !== 'admin') {
-    console.log("AdminLayout - User is not admin, redirecting to home", user.role);
+  // Now use the isAdmin state to check admin role instead of directly checking user.role
+  if (!isAdmin) {
+    console.log("AdminLayout - User is not admin, redirecting to home. Role:", user.role);
     toast({
       title: "Akses Ditolak",
       description: "Anda tidak memiliki akses admin.",

@@ -72,7 +72,7 @@ const App = () => {
                     <Route path="/register" element={<Register />} />
                     <Route path="/profile" element={<Profile />} />
                     
-                    {/* Admin Routes */}
+                    {/* Admin Routes - Make sure /admin points to AdminDashboard */}
                     <Route element={<AdminLayout />}>
                       <Route path="/admin" element={<AdminDashboard />} />
                       <Route path="/admin/users" element={<AdminUsers />} />
