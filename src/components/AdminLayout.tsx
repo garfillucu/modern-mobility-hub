@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from '../lib/supabase';
 
 const AdminLayout = () => {
   const { user, loading } = useAuth();
@@ -13,9 +14,9 @@ const AdminLayout = () => {
     // Debug information
     console.log("AdminLayout - Auth state:", { user, loading, isAdmin: user?.role === 'admin' });
     
-    // Once auth loading is done, we can verify the role
-    if (!loading) {
-      if (user) {
+    const checkUserRole = async () => {
+      // Once auth loading is done, we can verify the role
+      if (!loading && user) {
         console.log("User details:", { 
           id: user.id, 
           email: user.email, 
@@ -23,14 +24,39 @@ const AdminLayout = () => {
           metadata: user.user_metadata
         });
         
-        // Check if the user has admin role - fix case sensitivity issue
-        const hasAdminRole = user.role?.toLowerCase() === 'admin';
-        setIsAdmin(hasAdminRole);
-        console.log("User admin status:", hasAdminRole, "Role value:", user.role);
+        try {
+          // Periksa langsung di tabel users untuk memastikan role yang benar
+          const { data: userData, error } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+            
+          if (error) {
+            console.error("Error fetching user role:", error);
+            setIsAdmin(false);
+          } else if (userData) {
+            console.log("Supabase user data:", userData);
+            // Periksa role dari database
+            const hasAdminRole = userData.role?.toLowerCase() === 'admin';
+            setIsAdmin(hasAdminRole);
+            console.log("User has admin role:", hasAdminRole ? user.email : "No");
+          } else {
+            setIsAdmin(false);
+            console.log("User not found in users table");
+          }
+        } catch (error) {
+          console.error("Error checking admin status:", error);
+          setIsAdmin(false);
+        }
+        
+        setIsVerifying(false);
+      } else if (!loading) {
+        setIsVerifying(false);
       }
-      
-      setIsVerifying(false);
-    }
+    };
+    
+    checkUserRole();
   }, [loading, user]);
 
   // Show loading indicator while verifying
@@ -100,3 +126,4 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
+
