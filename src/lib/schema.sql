@@ -1,4 +1,5 @@
 
+
 -- Membuat tabel users
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
@@ -76,19 +77,35 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('car-images', 'car-images', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
--- Policy untuk upload gambar
+-- Policy untuk upload gambar - PERBAIKAN: Membuat policy yang lebih fleksibel
+DROP POLICY IF EXISTS "Allow public viewing of car images" ON storage.objects;
+DROP POLICY IF EXISTS "Allow authenticated users to upload car images" ON storage.objects;
+
+-- Policy baru yang lebih sederhana untuk melihat gambar
 CREATE POLICY "Allow public viewing of car images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'car-images');
 
+-- Policy baru yang lebih sederhana untuk upload gambar
 CREATE POLICY "Allow authenticated users to upload car images"
 ON storage.objects FOR INSERT
 TO authenticated
-WITH CHECK (
+WITH CHECK (bucket_id = 'car-images');
+
+-- Policy tambahan untuk memastikan admin dapat melakukan update dan delete pada gambar
+CREATE POLICY "Allow admin to update car images"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (
   bucket_id = 'car-images' AND
-  EXISTS (
-    SELECT 1 FROM users 
-    WHERE users.id = auth.uid() 
-    AND users.role = 'admin'
-  )
+  (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
 );
+
+CREATE POLICY "Allow admin to delete car images"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'car-images' AND
+  (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
+);
+

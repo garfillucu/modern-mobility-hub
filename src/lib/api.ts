@@ -212,32 +212,75 @@ export const uploadCarImage = async (file: File, fileName?: string) => {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
+      console.error('Upload failed: User not authenticated');
       throw new Error('User tidak terautentikasi');
     }
     
     // Generate unique file name jika tidak disediakan
-    const storageFileName = fileName || `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
+    const uniqueId = Date.now();
+    const cleanFileName = file.name.replace(/\s+/g, '-').toLowerCase();
+    const storageFileName = fileName || `${uniqueId}-${cleanFileName}`;
     const filePath = `cars/${storageFileName}`;
     
-    console.log('Uploading image with auth token and anon key...');
+    console.log('Uploading image:', filePath);
+    console.log('File type:', file.type);
+    console.log('File size:', file.size, 'bytes');
     
-    // Coba upload dengan metode yang berbeda - menggunakan serviceRole jika tersedia
+    // Verifikasi bahwa file adalah gambar
+    if (!file.type.startsWith('image/')) {
+      console.error('Upload failed: File is not an image');
+      throw new Error('File harus berupa gambar');
+    }
+    
+    // Tambahkan timeout untuk upload yang lebih lama
+    const uploadOptions = {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: file.type,
+    };
+    
+    // Upload gambar ke Supabase Storage
     const { data, error } = await supabase.storage
       .from('car-images')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true, // Ubah ke true untuk menimpa file yang sudah ada jika perlu
-        contentType: file.type,
-      });
+      .upload(filePath, file, uploadOptions);
       
     if (error) {
       console.error('Error uploading image:', error);
+      console.error('Error code:', error.status);
+      console.error('Error message:', error.message);
       
-      // Jika gagal, coba menggunakan URL publik placeholder
-      if (error.message && error.message.includes('403')) {
-        console.log('Using placeholder image due to permission issues');
-        // Gunakan URL gambar placeholder jika upload gagal karena izin
-        return 'https://images.unsplash.com/photo-1583267746897-2cf415887172?auto=format&fit=crop&w=500&q=60';
+      // Periksa secara spesifik jenis error
+      if (error.message && (
+          error.message.includes('403') || 
+          error.message.includes('Permission') || 
+          error.message.includes('not authorized')
+        )) {
+        console.log('Permission error detected, attempting fallback...');
+        
+        // Coba cara lain untuk mendapatkan URL publik jika ada
+        try {
+          // Memeriksa apakah file sudah ada dengan nama yang sama
+          const { data: checkData } = await supabase.storage
+            .from('car-images')
+            .list('cars');
+          
+          const fileExists = checkData?.some(f => f.name === storageFileName);
+          if (fileExists) {
+            const { data: { publicUrl } } = supabase.storage
+              .from('car-images')
+              .getPublicUrl(`cars/${storageFileName}`);
+            
+            console.log('File already exists, using existing URL:', publicUrl);
+            return publicUrl;
+          }
+        } catch (checkError) {
+          console.error('Error checking existing files:', checkError);
+        }
+        
+        // Jika file tidak ditemukan, gunakan placeholder yang berbeda
+        // Ini menghindari placeholder Mercedes yang tidak sesuai
+        console.log('Using alternative placeholder image');
+        return 'https://placehold.co/600x400?text=No+Image+Available';
       }
       
       throw error;
@@ -250,11 +293,12 @@ export const uploadCarImage = async (file: File, fileName?: string) => {
       .from('car-images')
       .getPublicUrl(filePath);
       
+    console.log('Public URL:', publicUrl);
     return publicUrl;
   } catch (error) {
     console.error('Error in uploadCarImage:', error);
-    // Jika terjadi error, gunakan gambar placeholder
-    return 'https://images.unsplash.com/photo-1583267746897-2cf415887172?auto=format&fit=crop&w=500&q=60';
+    // Gunakan placeholder netral yang tidak mengandung gambar merek mobil tertentu
+    return 'https://placehold.co/600x400?text=No+Image+Available';
   }
 };
 

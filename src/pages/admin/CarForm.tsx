@@ -1,3 +1,4 @@
+
 import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getCarById, addCar, updateCar, uploadCarImage } from '@/lib/api';
@@ -17,6 +18,7 @@ const CarForm = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<Partial<Car>>({
     name: '',
@@ -95,7 +97,15 @@ const CarForm = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset upload error when selecting new file
+    setUploadError(null);
     setImageFile(file);
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setUploadError('File harus berupa gambar (JPG, PNG, GIF, dll)');
+      return;
+    }
     
     // Create preview
     const reader = new FileReader();
@@ -116,17 +126,41 @@ const CarForm = () => {
       if (imageFile) {
         try {
           setUploadingImage(true);
-          console.log('Attempting to upload image...');
+          console.log('Attempting to upload image:', imageFile.name);
+          console.log('Image type:', imageFile.type);
+          console.log('Image size:', imageFile.size, 'bytes');
+          
           imageUrl = await uploadCarImage(imageFile);
           console.log('Image uploaded successfully:', imageUrl);
-        } catch (uploadError) {
+          
+          // Check if we got a placeholder instead of actual upload
+          if (imageUrl.includes('placehold.co') || imageUrl.includes('placeholder')) {
+            setUploadError('Gambar tidak dapat diupload karena izin. Menggunakan gambar placeholder untuk sementara.');
+          } else {
+            setUploadError(null);
+          }
+        } catch (uploadError: any) {
           console.error('Error uploading image:', uploadError);
-          toast({
-            title: "Peringatan",
-            description: "Gambar menggunakan default karena kendala izin. Data mobil tetap akan disimpan.",
-            variant: "destructive"
-          });
-          // Lanjutkan proses meskipun upload gambar gagal
+          setUploadError(`Gagal upload gambar: ${uploadError.message || 'Unknown error'}`);
+          
+          if (formData.imageUrl) {
+            // Jika sudah ada imageUrl sebelumnya, tetap gunakan itu
+            imageUrl = formData.imageUrl;
+            toast({
+              title: "Peringatan",
+              description: "Gambar gagal diupload, menggunakan gambar lama",
+              variant: "destructive"
+            });
+          } else {
+            // Gunakan placeholder dengan nama mobil yang sedang ditambahkan
+            const carName = formData.name || 'Car';
+            imageUrl = `https://placehold.co/600x400?text=${encodeURIComponent(carName)}`;
+            toast({
+              title: "Peringatan",
+              description: "Gambar gagal diupload, menggunakan placeholder",
+              variant: "destructive"
+            });
+          }
         } finally {
           setUploadingImage(false);
         }
@@ -161,7 +195,7 @@ const CarForm = () => {
         
         // Periksa apakah error terkait skema tabel
         if (saveError.message && saveError.message.includes("column") && saveError.message.includes("not found")) {
-          errorMessage = "Kolom tidak ditemukan di database. Pastikan skema tabel Anda sesuai.";
+          errorMessage = "Kolom tidak ditemukan di database. Pastikan skema tabel Anda sesuai dengan menjalankan query SQL di Supabase SQL Editor.";
         } else if (saveError.message) {
           errorMessage = saveError.message;
         }
@@ -392,6 +426,11 @@ const CarForm = () => {
                 className="hidden"
               />
             </label>
+            
+            {uploadError && (
+              <p className="mt-2 text-sm text-red-500">{uploadError}</p>
+            )}
+            
             {uploadingImage && (
               <div className="mt-2 flex items-center text-sm text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
