@@ -1,4 +1,3 @@
-
 import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getCarById, addCar, updateCar, uploadCarImage } from '@/lib/api';
@@ -97,17 +96,14 @@ const CarForm = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset upload error when selecting new file
     setUploadError(null);
     setImageFile(file);
     
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       setUploadError('File harus berupa gambar (JPG, PNG, GIF, dll)');
       return;
     }
     
-    // Create preview
     const reader = new FileReader();
     reader.onload = () => {
       setImagePreview(reader.result as string);
@@ -121,7 +117,6 @@ const CarForm = () => {
     try {
       setSubmitting(true);
       
-      // Upload image if selected
       let imageUrl = formData.imageUrl;
       if (imageFile) {
         try {
@@ -130,10 +125,10 @@ const CarForm = () => {
           console.log('Image type:', imageFile.type);
           console.log('Image size:', imageFile.size, 'bytes');
           
-          imageUrl = await uploadCarImage(imageFile);
+          const uploadedImageUrl = await uploadCarImage(imageFile);
+          imageUrl = uploadedImageUrl;
           console.log('Image uploaded successfully:', imageUrl);
           
-          // Check if we got a placeholder or data URL instead of actual upload
           if (imageUrl.includes('placehold.co') || imageUrl.includes('placeholder')) {
             setUploadError('Gambar tidak dapat diupload ke Supabase Storage. Menggunakan gambar alternatif untuk sementara.');
           } else if (imageUrl.startsWith('data:image/')) {
@@ -146,7 +141,6 @@ const CarForm = () => {
           setUploadError(`Gagal upload gambar: ${uploadError.message || 'Unknown error'}`);
           
           if (formData.imageUrl) {
-            // Jika sudah ada imageUrl sebelumnya, tetap gunakan itu
             imageUrl = formData.imageUrl;
             toast({
               title: "Peringatan",
@@ -154,7 +148,6 @@ const CarForm = () => {
               variant: "destructive"
             });
           } else {
-            // Gunakan placeholder dengan nama mobil yang sedang ditambahkan
             const carName = formData.name || 'Car';
             imageUrl = `https://placehold.co/600x400?text=${encodeURIComponent(carName)}`;
             toast({
@@ -192,10 +185,8 @@ const CarForm = () => {
       } catch (saveError: any) {
         console.error('Error saving car data:', saveError);
         
-        // Pesan error yang lebih spesifik berdasarkan tipe error
         let errorMessage = "Gagal menambahkan/memperbarui mobil";
         
-        // Periksa apakah error terkait skema tabel
         if (saveError.message && saveError.message.includes("column") && saveError.message.includes("not found")) {
           errorMessage = "Kolom tidak ditemukan di database. Pastikan skema tabel Anda sesuai dengan menjalankan query berikut di Supabase SQL Editor:";
           errorMessage += "\nALTER TABLE cars ADD COLUMN IF NOT EXISTS \"imageUrl\" TEXT;";
@@ -212,10 +203,8 @@ const CarForm = () => {
     } catch (error) {
       console.error('Error submitting car form:', error);
       
-      // Tampilkan pesan error yang lebih spesifik berdasarkan tipe error
       let errorMessage = "Gagal menambahkan mobil";
       if (typeof error === 'object' && error !== null) {
-        // @ts-ignore
         errorMessage = error.message || errorMessage;
       }
       

@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase';
 import { Car } from './supabase';
 
@@ -206,7 +207,7 @@ export const deleteCar = async (id: string) => {
 };
 
 // Fungsi untuk upload gambar
-export const uploadCarImage = async (file: File, fileName?: string) => {
+export const uploadCarImage = async (file: File, fileName?: string): Promise<string> => {
   try {
     // Dapatkan user session untuk memastikan upload dilakukan dengan otorisasi yang benar
     const { data: { session } } = await supabase.auth.getSession();
@@ -281,13 +282,19 @@ export const uploadCarImage = async (file: File, fileName?: string) => {
         try {
           console.log('Attempting Base64 conversion as fallback...');
           // Convert file to base64 and store as URL
-          return new Promise((resolve, reject) => {
+          return new Promise<string>((resolve) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = () => {
               console.log('Base64 conversion successful, using data URL');
-              // Return the base64 string as a fallback
-              resolve(reader.result as string);
+              const result = reader.result;
+              // Ensure we're returning a string
+              if (typeof result === 'string') {
+                resolve(result);
+              } else {
+                console.error('Base64 result is not a string');
+                resolve('https://placehold.co/600x400?text=' + encodeURIComponent(file.name));
+              }
             };
             reader.onerror = () => {
               console.error('Base64 conversion failed');
