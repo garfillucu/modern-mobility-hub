@@ -133,9 +133,11 @@ const CarForm = () => {
           imageUrl = await uploadCarImage(imageFile);
           console.log('Image uploaded successfully:', imageUrl);
           
-          // Check if we got a placeholder instead of actual upload
+          // Check if we got a placeholder or data URL instead of actual upload
           if (imageUrl.includes('placehold.co') || imageUrl.includes('placeholder')) {
-            setUploadError('Gambar tidak dapat diupload karena izin. Menggunakan gambar placeholder untuk sementara.');
+            setUploadError('Gambar tidak dapat diupload ke Supabase Storage. Menggunakan gambar alternatif untuk sementara.');
+          } else if (imageUrl.startsWith('data:image/')) {
+            setUploadError('Gambar tersimpan sebagai Base64. Ini berfungsi tetapi tidak optimal untuk performa.');
           } else {
             setUploadError(null);
           }
@@ -195,7 +197,8 @@ const CarForm = () => {
         
         // Periksa apakah error terkait skema tabel
         if (saveError.message && saveError.message.includes("column") && saveError.message.includes("not found")) {
-          errorMessage = "Kolom tidak ditemukan di database. Pastikan skema tabel Anda sesuai dengan menjalankan query SQL di Supabase SQL Editor.";
+          errorMessage = "Kolom tidak ditemukan di database. Pastikan skema tabel Anda sesuai dengan menjalankan query berikut di Supabase SQL Editor:";
+          errorMessage += "\nALTER TABLE cars ADD COLUMN IF NOT EXISTS \"imageUrl\" TEXT;";
         } else if (saveError.message) {
           errorMessage = saveError.message;
         }

@@ -247,8 +247,9 @@ export const uploadCarImage = async (file: File, fileName?: string) => {
     if (error) {
       console.error('Error uploading image:', error);
       console.error('Error message:', error.message);
+      console.error('Full error object:', JSON.stringify(error, null, 2));
       
-      // Periksa secara spesifik jenis error berdasarkan pesan error, bukan status
+      // Periksa secara spesifik jenis error berdasarkan pesan error
       if (error.message && (
           error.message.includes('403') || 
           error.message.includes('Permission') || 
@@ -276,10 +277,30 @@ export const uploadCarImage = async (file: File, fileName?: string) => {
           console.error('Error checking existing files:', checkError);
         }
         
-        // Jika file tidak ditemukan, gunakan placeholder yang berbeda
-        // Ini menghindari placeholder Mercedes yang tidak sesuai
-        console.log('Using alternative placeholder image');
-        return 'https://placehold.co/600x400?text=No+Image+Available';
+        // Cara alternatif untuk upload gambar (menggunakan file sebagai Base64)
+        try {
+          console.log('Attempting Base64 conversion as fallback...');
+          // Convert file to base64 and store as URL
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+              console.log('Base64 conversion successful, using data URL');
+              // Return the base64 string as a fallback
+              resolve(reader.result as string);
+            };
+            reader.onerror = () => {
+              console.error('Base64 conversion failed');
+              // If all else fails, use placeholder
+              resolve('https://placehold.co/600x400?text=' + encodeURIComponent(file.name));
+            };
+          });
+        } catch (base64Error) {
+          console.error('Error creating base64 URL:', base64Error);
+          // Jika file tidak ditemukan dan base64 gagal, gunakan placeholder dengan nama file
+          console.log('Using placeholder with filename');
+          return 'https://placehold.co/600x400?text=' + encodeURIComponent(file.name);
+        }
       }
       
       throw error;
@@ -296,7 +317,10 @@ export const uploadCarImage = async (file: File, fileName?: string) => {
     return publicUrl;
   } catch (error) {
     console.error('Error in uploadCarImage:', error);
-    // Gunakan placeholder netral yang tidak mengandung gambar merek mobil tertentu
+    // Gunakan placeholder dengan nama file
+    if (file && file.name) {
+      return 'https://placehold.co/600x400?text=' + encodeURIComponent(file.name);
+    }
     return 'https://placehold.co/600x400?text=No+Image+Available';
   }
 };

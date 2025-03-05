@@ -1,5 +1,3 @@
-
-
 -- Membuat tabel users
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
@@ -108,4 +106,3 @@ USING (
   bucket_id = 'car-images' AND
   (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
 );
-
