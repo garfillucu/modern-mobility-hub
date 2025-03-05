@@ -246,10 +246,9 @@ export const uploadCarImage = async (file: File, fileName?: string) => {
       
     if (error) {
       console.error('Error uploading image:', error);
-      console.error('Error code:', error.status);
       console.error('Error message:', error.message);
       
-      // Periksa secara spesifik jenis error
+      // Periksa secara spesifik jenis error berdasarkan pesan error, bukan status
       if (error.message && (
           error.message.includes('403') || 
           error.message.includes('Permission') || 
