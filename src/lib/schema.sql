@@ -29,3 +29,66 @@ CREATE TABLE IF NOT EXISTS cars (
 CREATE INDEX IF NOT EXISTS cars_brand_idx ON cars (brand);
 CREATE INDEX IF NOT EXISTS cars_transmission_idx ON cars (transmission);
 CREATE INDEX IF NOT EXISTS cars_category_idx ON cars (category);
+
+-- Buat RLS policy untuk tabel cars
+ALTER TABLE cars ENABLE ROW LEVEL SECURITY;
+
+-- Policy untuk membaca data
+CREATE POLICY "Allow read for all users" 
+ON cars FOR SELECT USING (true);
+
+-- Policy untuk insert/update/delete data untuk admin
+CREATE POLICY "Allow insert for admin users" 
+ON cars FOR INSERT 
+TO authenticated 
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM users 
+    WHERE users.id = auth.uid() 
+    AND users.role = 'admin'
+  )
+);
+
+CREATE POLICY "Allow update for admin users" 
+ON cars FOR UPDATE 
+TO authenticated 
+USING (
+  EXISTS (
+    SELECT 1 FROM users 
+    WHERE users.id = auth.uid() 
+    AND users.role = 'admin'
+  )
+);
+
+CREATE POLICY "Allow delete for admin users" 
+ON cars FOR DELETE 
+TO authenticated 
+USING (
+  EXISTS (
+    SELECT 1 FROM users 
+    WHERE users.id = auth.uid() 
+    AND users.role = 'admin'
+  )
+);
+
+-- Konfigurasi Storage untuk car-images bucket
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('car-images', 'car-images', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Policy untuk upload gambar
+CREATE POLICY "Allow public viewing of car images"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'car-images');
+
+CREATE POLICY "Allow authenticated users to upload car images"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'car-images' AND
+  EXISTS (
+    SELECT 1 FROM users 
+    WHERE users.id = auth.uid() 
+    AND users.role = 'admin'
+  )
+);

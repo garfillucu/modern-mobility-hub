@@ -234,7 +234,7 @@ export const uploadCarImage = async (file: File, fileName?: string) => {
       console.error('Error uploading image:', error);
       
       // Jika gagal, coba menggunakan URL publik placeholder
-      if (error.statusCode === '403') {
+      if (error.message && error.message.includes('403')) {
         console.log('Using placeholder image due to permission issues');
         // Gunakan URL gambar placeholder jika upload gagal karena izin
         return 'https://images.unsplash.com/photo-1583267746897-2cf415887172?auto=format&fit=crop&w=500&q=60';

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getCarById, addCar, updateCar, uploadCarImage } from '@/lib/api';
@@ -138,21 +137,41 @@ const CarForm = () => {
         imageUrl
       };
       
-      if (isEditMode && id) {
-        await updateCar(id, carData);
+      try {
+        if (isEditMode && id) {
+          await updateCar(id, carData);
+          toast({
+            title: "Sukses",
+            description: "Mobil berhasil diperbarui",
+          });
+        } else {
+          await addCar(carData as Omit<Car, 'id'>);
+          toast({
+            title: "Sukses",
+            description: "Mobil berhasil ditambahkan",
+          });
+        }
+        
+        navigate('/admin/cars');
+      } catch (saveError: any) {
+        console.error('Error saving car data:', saveError);
+        
+        // Pesan error yang lebih spesifik berdasarkan tipe error
+        let errorMessage = "Gagal menambahkan/memperbarui mobil";
+        
+        // Periksa apakah error terkait skema tabel
+        if (saveError.message && saveError.message.includes("column") && saveError.message.includes("not found")) {
+          errorMessage = "Kolom tidak ditemukan di database. Pastikan skema tabel Anda sesuai.";
+        } else if (saveError.message) {
+          errorMessage = saveError.message;
+        }
+        
         toast({
-          title: "Sukses",
-          description: "Mobil berhasil diperbarui",
-        });
-      } else {
-        await addCar(carData as Omit<Car, 'id'>);
-        toast({
-          title: "Sukses",
-          description: "Mobil berhasil ditambahkan",
+          title: "Error",
+          description: isEditMode ? `Gagal memperbarui mobil: ${errorMessage}` : `Gagal menambahkan mobil: ${errorMessage}`,
+          variant: "destructive"
         });
       }
-      
-      navigate('/admin/cars');
     } catch (error) {
       console.error('Error submitting car form:', error);
       
