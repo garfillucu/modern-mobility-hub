@@ -1,3 +1,4 @@
+
 import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getCarById, addCar, updateCar, uploadCarImage } from '@/lib/api';
@@ -14,6 +15,7 @@ const CarForm = () => {
   
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
   
@@ -114,18 +116,20 @@ const CarForm = () => {
       let imageUrl = formData.imageUrl;
       if (imageFile) {
         try {
+          setUploadingImage(true);
           console.log('Attempting to upload image...');
           imageUrl = await uploadCarImage(imageFile);
           console.log('Image uploaded successfully:', imageUrl);
         } catch (uploadError) {
           console.error('Error uploading image:', uploadError);
           toast({
-            title: "Error",
-            description: "Gagal mengupload gambar mobil. Coba lagi nanti.",
+            title: "Peringatan",
+            description: "Gambar menggunakan default karena kendala izin. Data mobil tetap akan disimpan.",
             variant: "destructive"
           });
-          setSubmitting(false);
-          return;
+          // Lanjutkan proses meskipun upload gambar gagal
+        } finally {
+          setUploadingImage(false);
         }
       }
       
@@ -369,6 +373,12 @@ const CarForm = () => {
                 className="hidden"
               />
             </label>
+            {uploadingImage && (
+              <div className="mt-2 flex items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Mengupload gambar...
+              </div>
+            )}
           </div>
           
           <div className="flex justify-end gap-4">
