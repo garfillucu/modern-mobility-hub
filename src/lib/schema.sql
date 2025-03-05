@@ -1,3 +1,4 @@
+
 -- Membuat tabel users
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
@@ -28,6 +29,27 @@ CREATE TABLE IF NOT EXISTS cars (
 CREATE INDEX IF NOT EXISTS cars_brand_idx ON cars (brand);
 CREATE INDEX IF NOT EXISTS cars_transmission_idx ON cars (transmission);
 CREATE INDEX IF NOT EXISTS cars_category_idx ON cars (category);
+
+-- Membuat tabel bookings
+CREATE TABLE IF NOT EXISTS bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  car_id UUID NOT NULL REFERENCES cars(id),
+  user_id UUID NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  total_price INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT NOT NULL,
+  customer_email TEXT NOT NULL,
+  notes TEXT
+);
+
+-- Membuat indeks pada tabel bookings
+CREATE INDEX IF NOT EXISTS bookings_car_id_idx ON bookings (car_id);
+CREATE INDEX IF NOT EXISTS bookings_user_id_idx ON bookings (user_id);
+CREATE INDEX IF NOT EXISTS bookings_status_idx ON bookings (status);
 
 -- Buat RLS policy untuk tabel cars
 ALTER TABLE cars ENABLE ROW LEVEL SECURITY;
@@ -61,6 +83,51 @@ USING (
 
 CREATE POLICY "Allow delete for admin users" 
 ON cars FOR DELETE 
+TO authenticated 
+USING (
+  EXISTS (
+    SELECT 1 FROM users 
+    WHERE users.id = auth.uid() 
+    AND users.role = 'admin'
+  )
+);
+
+-- RLS policy untuk tabel bookings
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+
+-- Policy untuk membaca data bookings
+CREATE POLICY "Users can view their own bookings" 
+ON bookings FOR SELECT 
+TO authenticated 
+USING (user_id = auth.uid());
+
+-- Policy untuk admin melihat semua bookings
+CREATE POLICY "Admins can view all bookings" 
+ON bookings FOR SELECT 
+TO authenticated 
+USING (
+  EXISTS (
+    SELECT 1 FROM users 
+    WHERE users.id = auth.uid() 
+    AND users.role = 'admin'
+  )
+);
+
+-- Policy untuk insert data bookings
+CREATE POLICY "Users can insert their own bookings" 
+ON bookings FOR INSERT 
+TO authenticated 
+WITH CHECK (user_id = auth.uid());
+
+-- Policy untuk update data bookings
+CREATE POLICY "Users can update their own bookings" 
+ON bookings FOR UPDATE 
+TO authenticated 
+USING (user_id = auth.uid());
+
+-- Policy untuk admin mengupdate semua bookings
+CREATE POLICY "Admins can update all bookings" 
+ON bookings FOR UPDATE 
 TO authenticated 
 USING (
   EXISTS (

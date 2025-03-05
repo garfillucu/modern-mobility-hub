@@ -19,3 +19,18 @@ export type Car = {
   description?: string;
   features?: string[];
 };
+
+export type Booking = {
+  id: string;
+  car_id: string;
+  user_id: string;
+  start_date: string;
+  end_date: string;
+  total_price: number;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  created_at: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  notes?: string;
+};

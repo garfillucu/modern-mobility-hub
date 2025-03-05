@@ -11,6 +11,7 @@ import { initDatabase } from "./lib/initDatabase";
 import Index from "./pages/Index";
 import Cars from "./pages/Cars";
 import CarDetail from "./pages/CarDetail";
+import BookingHistory from "./pages/BookingHistory";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
@@ -22,6 +23,7 @@ import AdminLayout from "./components/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
 import AdminCars from "./pages/admin/Cars";
+import AdminBookings from "./pages/admin/Bookings";
 import CarForm from "./pages/admin/CarForm";
 
 const queryClient = new QueryClient();
@@ -66,6 +68,7 @@ const App = () => {
                     <Route path="/" element={<Index />} />
                     <Route path="/cars" element={<Cars />} />
                     <Route path="/cars/:id" element={<CarDetail />} />
+                    <Route path="/bookings" element={<BookingHistory />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/contact" element={<Contact />} />
                     <Route path="/login" element={<Login />} />
@@ -77,6 +80,7 @@ const App = () => {
                       <Route path="/admin" element={<AdminDashboard />} />
                       <Route path="/admin/users" element={<AdminUsers />} />
                       <Route path="/admin/cars" element={<AdminCars />} />
+                      <Route path="/admin/bookings" element={<AdminBookings />} />
                       <Route path="/admin/cars/add" element={<CarForm />} />
                       <Route path="/admin/cars/edit/:id" element={<CarForm />} />
                     </Route>

@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { Car } from './supabase';
 
@@ -332,6 +331,153 @@ export const uploadCarImage = async (file: File, fileName?: string): Promise<str
   }
 };
 
+// Fungsi untuk membuat pemesanan baru
+export const createBooking = async (booking: Omit<Booking, 'id' | 'created_at'>) => {
+  try {
+    // Dapatkan session user
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session && !booking.user_id) {
+      throw new Error('User tidak terautentikasi');
+    }
+    
+    // Gunakan user_id dari session jika tidak disediakan
+    const userId = booking.user_id || session?.user.id;
+    
+    const { data, error } = await supabase
+      .from('bookings')
+      .insert([{ ...booking, user_id: userId }])
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error creating booking:', error);
+      throw error;
+    }
+    
+    return data as Booking;
+  } catch (error) {
+    console.error('Error in createBooking function:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk mendapatkan pemesanan berdasarkan ID
+export const getBookingById = async (id: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*, cars(*)')
+      .eq('id', id)
+      .single();
+      
+    if (error) {
+      console.error('Error fetching booking:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in getBookingById function:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk mendapatkan pemesanan berdasarkan user ID
+export const getUserBookings = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*, cars(*)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching user bookings:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in getUserBookings function:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk mengubah status pemesanan
+export const updateBookingStatus = async (id: string, status: Booking['status']) => {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error updating booking status:', error);
+      throw error;
+    }
+    
+    return data as Booking;
+  } catch (error) {
+    console.error('Error in updateBookingStatus function:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk mendapatkan semua pemesanan (admin)
+export const getAllBookings = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*, cars(*)')
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching all bookings:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in getAllBookings function:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk membuat tabel bookings
+export const createBookingsTable = async () => {
+  try {
+    // Cek apakah tabel bookings sudah ada
+    const { error: checkError } = await supabase
+      .from('bookings')
+      .select('id')
+      .limit(1);
+    
+    if (checkError && checkError.code === '42P01') {
+      console.log('Bookings table does not exist, creating it...');
+      
+      // Jalankan SQL untuk membuat tabel bookings
+      const { error: createError } = await supabase.rpc('create_bookings_table');
+      
+      if (createError) {
+        console.error('Error creating bookings table:', createError);
+        return false;
+      }
+      
+      console.log('Bookings table created successfully!');
+      return true;
+    } else {
+      console.log('Bookings table already exists');
+      return true;
+    }
+  } catch (error) {
+    console.error('Error checking/creating bookings table:', error);
+    return false;
+  }
+};
+
 // Fungsi untuk mendapatkan SQL untuk membuat tabel cars
 export const getCreateCarsSql = () => {
   return `
@@ -520,3 +666,105 @@ END;
 $$;
   `;
 };
+
+// Fungsi untuk mendapatkan SQL untuk membuat tabel bookings
+export const getCreateBookingsSql = () => {
+  return `
+-- Buat tabel bookings
+CREATE TABLE IF NOT EXISTS public.bookings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  car_id UUID NOT NULL REFERENCES cars(id),
+  user_id UUID NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  total_price INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT NOT NULL,
+  customer_email TEXT NOT NULL,
+  notes TEXT
+);
+
+-- Buat indeks untuk mempercepat pencarian
+CREATE INDEX IF NOT EXISTS bookings_car_id_idx ON bookings (car_id);
+CREATE INDEX IF NOT EXISTS bookings_user_id_idx ON bookings (user_id);
+CREATE INDEX IF NOT EXISTS bookings_status_idx ON bookings (status);
+
+-- Buat function untuk membuat tabel bookings
+CREATE OR REPLACE FUNCTION create_bookings_table()
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Buat tabel bookings jika belum ada
+  CREATE TABLE IF NOT EXISTS public.bookings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    car_id UUID NOT NULL REFERENCES cars(id),
+    user_id UUID NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    total_price INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    customer_name TEXT NOT NULL,
+    customer_phone TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    notes TEXT
+  );
+  
+  -- Buat indeks untuk mempercepat pencarian
+  CREATE INDEX IF NOT EXISTS bookings_car_id_idx ON bookings (car_id);
+  CREATE INDEX IF NOT EXISTS bookings_user_id_idx ON bookings (user_id);
+  CREATE INDEX IF NOT EXISTS bookings_status_idx ON bookings (status);
+  
+  RETURN TRUE;
+END;
+$$;
+
+-- Set up RLS policies
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+
+-- Policy untuk membaca data
+CREATE POLICY "Users can view their own bookings" 
+ON bookings FOR SELECT 
+TO authenticated 
+USING (user_id = auth.uid());
+
+-- Policy untuk admin melihat semua bookings
+CREATE POLICY "Admins can view all bookings" 
+ON bookings FOR SELECT 
+TO authenticated 
+USING (
+  EXISTS (
+    SELECT 1 FROM users 
+    WHERE users.id = auth.uid() 
+    AND users.role = 'admin'
+  )
+);
+
+-- Policy untuk insert data
+CREATE POLICY "Users can insert their own bookings" 
+ON bookings FOR INSERT 
+TO authenticated 
+WITH CHECK (user_id = auth.uid());
+
+-- Policy untuk update data
+CREATE POLICY "Users can update their own bookings" 
+ON bookings FOR UPDATE 
+TO authenticated 
+USING (user_id = auth.uid());
+
+-- Policy untuk admin mengupdate semua bookings
+CREATE POLICY "Admins can update all bookings" 
+ON bookings FOR UPDATE 
+TO authenticated 
+USING (
+  EXISTS (
+    SELECT 1 FROM users 
+    WHERE users.id = auth.uid() 
+    AND users.role = 'admin'
+  )
+);
+`;
