@@ -27,12 +27,18 @@ export const initDatabase = async () => {
         
         // Execute SQL langsung untuk membuat tabel bookings
         const bookingsSql = getCreateBookingsSql();
+        
+        // Log SQL untuk debugging
+        console.log('Menjalankan SQL untuk membuat tabel bookings...');
+        
         const { error } = await supabase.rpc('exec_sql', { sql_query: bookingsSql });
         
         if (error) {
           console.error('Error executing bookings SQL:', error);
           
           // Metode alternatif: buat tabel secara manual menggunakan query dasar
+          console.log('Mencoba metode alternatif membuat tabel bookings...');
+          
           const { error: manualError } = await supabase.rpc('exec_sql', {
             sql_query: `
               CREATE TABLE IF NOT EXISTS public.bookings (
@@ -49,6 +55,9 @@ export const initDatabase = async () => {
                 customer_email TEXT NOT NULL,
                 notes TEXT
               );
+              
+              -- Nonaktifkan RLS dulu untuk memastikan admin dapat mengakses semua data
+              ALTER TABLE IF EXISTS bookings DISABLE ROW LEVEL SECURITY;
             `
           });
           
@@ -63,6 +72,46 @@ export const initDatabase = async () => {
         }
       } else {
         console.log('Tabel bookings sudah ada');
+        
+        // Reset RLS policies untuk memastikan admin bisa melihat semua data
+        console.log('Memeriksa dan memperbarui kebijakan RLS...');
+        
+        const { error: rlsError } = await supabase.rpc('exec_sql', {
+          sql_query: `
+            -- Nonaktifkan RLS dulu
+            ALTER TABLE IF EXISTS bookings DISABLE ROW LEVEL SECURITY;
+            
+            -- Aktifkan kembali dengan policy yang benar
+            ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+            
+            -- Hapus policy lama jika ada
+            DROP POLICY IF EXISTS "Users can view their own bookings" ON bookings;
+            DROP POLICY IF EXISTS "Admins can view all bookings" ON bookings;
+            
+            -- Buat policy baru untuk admin
+            CREATE POLICY "Admins can do everything" 
+            ON bookings 
+            TO authenticated 
+            USING (
+              (SELECT role FROM users WHERE users.id = auth.uid()) = 'admin'
+            ) 
+            WITH CHECK (
+              (SELECT role FROM users WHERE users.id = auth.uid()) = 'admin'
+            );
+            
+            -- Policy untuk user biasa
+            CREATE POLICY "Users can view their own bookings" 
+            ON bookings FOR SELECT 
+            TO authenticated 
+            USING (user_id = auth.uid());
+          `
+        });
+        
+        if (rlsError) {
+          console.error('Error updating RLS policies:', rlsError);
+        } else {
+          console.log('RLS policies updated successfully');
+        }
       }
     } catch (bookingError) {
       console.error('Error checking/creating bookings table:', bookingError);

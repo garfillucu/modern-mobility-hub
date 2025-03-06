@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { Car, Booking } from './supabase';
 
@@ -497,18 +496,24 @@ export const getAllBookings = async () => {
       return [];
     }
     
+    // Tambahkan logging untuk debugging
+    console.log('Mengambil semua booking dari database...');
+    
     // Try with join first
     try {
-      const { data, error } = await supabase
+      // Tambahkan opsi { count: 'exact' } untuk melihat jumlah total data
+      const { data, error, count } = await supabase
         .from('bookings')
-        .select('*, cars(*)')
-        .order('created_at', { ascending: false });
+        .select('*, cars(*)', { count: 'exact' });
+        
+      console.log('Hasil query bookings:', { data, count, error });
         
       if (error) {
+        console.error('Error saat mengambil booking:', error);
         throw error;
       }
       
-      return data;
+      return data || [];
     } catch (joinError) {
       console.warn('Join query failed, falling back to separate queries:', joinError);
       
@@ -519,8 +524,11 @@ export const getAllBookings = async () => {
         .order('created_at', { ascending: false });
         
       if (error) {
+        console.error('Fallback query error:', error);
         throw error;
       }
+      
+      console.log('Fallback query results:', bookings);
       
       // If we have bookings, fetch car details separately for each
       if (bookings && bookings.length > 0) {
@@ -824,49 +832,46 @@ BEGIN
 END;
 $$;
 
--- Set up RLS policies
+-- Set up RLS policies - PERBAIKAN DISINI
+-- Hapus RLS dulu jika sudah ada
+ALTER TABLE IF EXISTS bookings DISABLE ROW LEVEL SECURITY;
+
+-- Aktifkan kembali RLS dengan policy yang benar
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 
--- Policy untuk membaca data
+-- Hapus policy lama jika ada
+DROP POLICY IF EXISTS "Users can view their own bookings" ON bookings;
+DROP POLICY IF EXISTS "Admins can view all bookings" ON bookings;
+DROP POLICY IF EXISTS "Users can insert their own bookings" ON bookings;
+DROP POLICY IF EXISTS "Users can update their own bookings" ON bookings;
+DROP POLICY IF EXISTS "Admins can update all bookings" ON bookings;
+
+-- Policy baru yang lebih permisif untuk admin
+CREATE POLICY "Admins can do everything" 
+ON bookings 
+TO authenticated 
+USING (
+  (SELECT role FROM users WHERE users.id = auth.uid()) = 'admin'
+) 
+WITH CHECK (
+  (SELECT role FROM users WHERE users.id = auth.uid()) = 'admin'
+);
+
+-- Policy untuk user biasa melihat booking miliknya sendiri
 CREATE POLICY "Users can view their own bookings" 
 ON bookings FOR SELECT 
 TO authenticated 
 USING (user_id = auth.uid());
 
--- Policy untuk admin melihat semua bookings
-CREATE POLICY "Admins can view all bookings" 
-ON bookings FOR SELECT 
-TO authenticated 
-USING (
-  EXISTS (
-    SELECT 1 FROM users 
-    WHERE users.id = auth.uid() 
-    AND users.role = 'admin'
-  )
-);
-
--- Policy untuk insert data
+-- Policy untuk user biasa menambahkan booking
 CREATE POLICY "Users can insert their own bookings" 
 ON bookings FOR INSERT 
 TO authenticated 
 WITH CHECK (user_id = auth.uid());
 
--- Policy untuk update data
+-- Policy untuk user biasa mengubah booking miliknya
 CREATE POLICY "Users can update their own bookings" 
 ON bookings FOR UPDATE 
 TO authenticated 
 USING (user_id = auth.uid());
-
--- Policy untuk admin mengupdate semua bookings
-CREATE POLICY "Admins can update all bookings" 
-ON bookings FOR UPDATE 
-TO authenticated 
-USING (
-  EXISTS (
-    SELECT 1 FROM users 
-    WHERE users.id = auth.uid() 
-    AND users.role = 'admin'
-  )
-);
 `;
-};

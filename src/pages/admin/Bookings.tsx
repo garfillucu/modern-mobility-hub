@@ -4,20 +4,63 @@ import { getAllBookings } from '../../lib/api';
 import { toast } from '@/components/ui/use-toast';
 import BookingCard from '@/components/BookingCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AdminBookings = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+    
+    // Check admin permissions untuk debugging
+    const checkAdminPermissions = async () => {
+      if (user) {
+        console.log('Memeriksa peran admin untuk:', user.email);
+        try {
+          // Periksa peran user dari database
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+            
+          if (userError) {
+            console.error('Error memeriksa peran user:', userError);
+          } else {
+            console.log('Peran user dari database:', userData?.role);
+          }
+          
+          // Coba akses langsung ke tabel bookings untuk mendiagnosa masalah RLS
+          const { data: bookingsData, error: bookingsError, count } = await supabase
+            .from('bookings')
+            .select('*', { count: 'exact' });
+            
+          console.log('Akses langsung ke bookings:', {
+            count,
+            error: bookingsError,
+            data: bookingsData
+          });
+        } catch (err) {
+          console.error('Error memeriksa permission:', err);
+        }
+      }
+    };
+    
+    checkAdminPermissions();
+  }, [user]);
 
   const fetchBookings = async () => {
     try {
       setLoading(true);
+      console.log('Mengambil data booking di halaman Admin...');
+      
       const data = await getAllBookings();
+      console.log('Hasil getAllBookings:', data);
+      
       setBookings(data || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
