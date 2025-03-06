@@ -1,6 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getCars, deleteCar, createCarsTable, getCreateCarsSql } from '@/lib/api';
+import { getCars, deleteCar, createCarsTable } from '@/lib/api';
+import { getCreateCarsSql } from '@/lib/sqlQueries';
 import { Car } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 import { Plus, Pencil, Trash, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
