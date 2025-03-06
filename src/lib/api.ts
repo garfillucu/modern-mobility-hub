@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Car } from './supabase';
+import { Car, Booking } from './supabase';
 
 // Fungsi untuk memeriksa dan membuat tabel cars jika belum ada
 export const createCarsTable = async () => {
