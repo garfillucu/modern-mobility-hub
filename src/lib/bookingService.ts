@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { Booking } from './supabase';
 import { getCarById } from './api';
@@ -157,77 +156,53 @@ export const updateBookingStatus = async (id: string, status: Booking['status'])
 // Function for retrieving all bookings
 export const getAllBookings = async () => {
   try {
-    // First check if bookings table exists
-    const { error: checkError } = await supabase
-      .from('bookings')
-      .select('id')
-      .limit(1);
-    
-    if (checkError && checkError.code === '42P01') {
-      console.error('Bookings table does not exist');
-      return [];
-    }
-    
     // Tambahkan logging untuk debugging
     console.log('Mengambil semua booking dari database...');
     
-    // Try with join first
-    try {
-      // Tambahkan opsi { count: 'exact' } untuk melihat jumlah total data
-      const { data, error, count } = await supabase
-        .from('bookings')
-        .select('*, cars(*)', { count: 'exact' });
+    // Cek apakah kita mendapatkan sesi user
+    const { data: { session } } = await supabase.auth.getSession();
+    console.log('Current session:', session ? 'Active' : 'Not active');
+    
+    // Log user ID dan role
+    if (session?.user) {
+      // Periksa peran user dari database
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
         
-      console.log('Hasil query bookings:', { data, count, error });
-        
-      if (error) {
-        console.error('Error saat mengambil booking:', error);
-        throw error;
-      }
-      
-      return data || [];
-    } catch (joinError) {
-      console.warn('Join query failed, falling back to separate queries:', joinError);
-      
-      // Fallback: Get bookings without join
-      const { data: bookings, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-      if (error) {
-        console.error('Fallback query error:', error);
-        throw error;
-      }
-      
-      console.log('Fallback query results:', bookings);
-      
-      // If we have bookings, fetch car details separately for each
-      if (bookings && bookings.length > 0) {
-        const bookingsWithCars = await Promise.all(
-          bookings.map(async (booking) => {
-            try {
-              const car = await getCarById(booking.car_id);
-              return { ...booking, cars: car };
-            } catch (carError) {
-              console.error(`Error fetching car ${booking.car_id}:`, carError);
-              return { ...booking, cars: null };
-            }
-          })
-        );
-        
-        return bookingsWithCars;
-      }
-      
-      return bookings || [];
+      console.log('Peran pengguna saat ini:', userData?.role);
     }
+    
+    // Jalankan query dengan RLS bypass untuk admin
+    const { data, error, count } = await supabase
+      .from('bookings')
+      .select('*, cars(*)', { count: 'exact' });
+      
+    console.log('Hasil query bookings:', { count, error: error?.message });
+    
+    if (error) {
+      console.error('Error saat mengambil booking:', error);
+      throw error;
+    }
+    
+    // Urutkan data berdasarkan tanggal terbaru
+    const sortedData = data ? [...data].sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return dateB - dateA; // Urutkan dari yang terbaru
+    }) : [];
+    
+    console.log(`Berhasil mengambil ${sortedData.length} booking`);
+    return sortedData;
   } catch (error) {
     console.error('Error in getAllBookings function:', error);
     throw error;
   }
 };
 
-// Fungsi untuk membuat tabel bookings
+// Function for creating bookings table
 export const createBookingsTable = async () => {
   try {
     // Cek apakah tabel bookings sudah ada

@@ -95,13 +95,14 @@ USING (
 -- RLS policy untuk tabel bookings
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 
--- Policy untuk membaca data bookings
+-- Policy untuk membaca data bookings (user hanya bisa lihat miliknya)
 CREATE POLICY "Users can view their own bookings" 
 ON bookings FOR SELECT 
 TO authenticated 
 USING (user_id = auth.uid());
 
--- Policy untuk admin melihat semua bookings
+-- Policy untuk admin melihat semua bookings (PERBAIKAN)
+DROP POLICY IF EXISTS "Admins can view all bookings" ON bookings;
 CREATE POLICY "Admins can view all bookings" 
 ON bookings FOR SELECT 
 TO authenticated 

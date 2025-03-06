@@ -111,6 +111,9 @@ const AdminLayout = () => {
             <a href="/admin/cars" className="flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-accent">
               Manajemen Mobil
             </a>
+            <a href="/admin/bookings" className="flex items-center px-4 py-3 text-sm font-medium rounded-md hover:bg-accent">
+              Pemesanan Mobil
+            </a>
           </nav>
         </div>
       </div>
@@ -126,4 +129,3 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
-

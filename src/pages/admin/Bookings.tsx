@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAllBookings } from '../../lib/bookingService';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 const AdminBookings = () => {
   const [bookings, setBookings] = useState<any[]>([]);
@@ -42,7 +44,7 @@ const AdminBookings = () => {
           console.log('Akses langsung ke bookings:', {
             count,
             error: bookingsError,
-            data: bookingsData
+            data: bookingsData?.length
           });
         } catch (err) {
           console.error('Error memeriksa permission:', err);
@@ -59,7 +61,13 @@ const AdminBookings = () => {
       console.log('Mengambil data booking di halaman Admin...');
       
       const data = await getAllBookings();
-      console.log('Hasil getAllBookings:', data);
+      console.log('Hasil getAllBookings:', data?.length || 0, 'bookings');
+      
+      if (data && data.length > 0) {
+        console.log('Sample booking data:', data[0]);
+      } else {
+        console.log('Tidak ada data booking yang ditemukan');
+      }
       
       setBookings(data || []);
     } catch (error) {
@@ -103,7 +111,13 @@ const AdminBookings = () => {
 
   return (
     <div className="container px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Pemesanan Mobil</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Pemesanan Mobil</h1>
+        <Button onClick={fetchBookings} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh Data
+        </Button>
+      </div>
       
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <TabsList className="grid grid-cols-5 w-full mb-4">
@@ -146,7 +160,19 @@ const AdminBookings = () => {
             </div>
           ) : getFilteredBookings().length === 0 ? (
             <div className="text-center py-16 bg-muted/50 rounded-lg">
-              <p className="text-lg">Tidak ada data pemesanan {activeTab !== 'all' ? 'dengan status ini' : ''}</p>
+              <p className="text-lg mb-4">Tidak ada data pemesanan {activeTab !== 'all' ? 'dengan status ini' : ''}</p>
+              <div className="flex flex-col items-center gap-4">
+                <p className="text-muted-foreground">
+                  {bookings.length === 0 ? 
+                    "Belum ada pemesanan yang dibuat oleh user" :
+                    `Ada ${bookings.length} pemesanan total, tapi tidak ada dengan status ${activeTab}`
+                  }
+                </p>
+                <Button onClick={fetchBookings} variant="outline">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Data
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
