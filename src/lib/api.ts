@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase';
 import { Car, Booking } from './supabase';
 
@@ -768,3 +769,4 @@ USING (
   )
 );
 `;
+};
