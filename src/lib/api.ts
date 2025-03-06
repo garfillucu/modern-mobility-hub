@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { Car, Booking } from './supabase';
 
@@ -384,30 +383,86 @@ export const getBookingById = async (id: string) => {
   }
 };
 
-// Fungsi untuk mendapatkan pemesanan berdasarkan user ID
+// Function for retrieving user bookings (modified to handle missing joins)
 export const getUserBookings = async (userId: string) => {
   try {
-    const { data, error } = await supabase
+    // First check if bookings table exists
+    const { error: checkError } = await supabase
       .from('bookings')
-      .select('*, cars(*)')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-      
-    if (error) {
-      console.error('Error fetching user bookings:', error);
-      throw error;
+      .select('id')
+      .limit(1);
+    
+    if (checkError && checkError.code === '42P01') {
+      console.error('Bookings table does not exist');
+      return [];
     }
     
-    return data;
+    // Try with join first
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*, cars(*)')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        throw error;
+      }
+      
+      return data;
+    } catch (joinError) {
+      console.warn('Join query failed, falling back to separate queries:', joinError);
+      
+      // Fallback: Get bookings without join
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        throw error;
+      }
+      
+      // If we have bookings, fetch car details separately for each
+      if (bookings && bookings.length > 0) {
+        const bookingsWithCars = await Promise.all(
+          bookings.map(async (booking) => {
+            try {
+              const car = await getCarById(booking.car_id);
+              return { ...booking, cars: car };
+            } catch (carError) {
+              console.error(`Error fetching car ${booking.car_id}:`, carError);
+              return { ...booking, cars: null };
+            }
+          })
+        );
+        
+        return bookingsWithCars;
+      }
+      
+      return bookings || [];
+    }
   } catch (error) {
     console.error('Error in getUserBookings function:', error);
     throw error;
   }
 };
 
-// Fungsi untuk mengubah status pemesanan
+// Function for updating booking status (updated to check table existence)
 export const updateBookingStatus = async (id: string, status: Booking['status']) => {
   try {
+    // First check if bookings table exists
+    const { error: checkError } = await supabase
+      .from('bookings')
+      .select('id')
+      .limit(1);
+    
+    if (checkError && checkError.code === '42P01') {
+      console.error('Bookings table does not exist');
+      throw new Error('Tabel pemesanan belum dibuat');
+    }
+    
     const { data, error } = await supabase
       .from('bookings')
       .update({ status })
@@ -427,20 +482,64 @@ export const updateBookingStatus = async (id: string, status: Booking['status'])
   }
 };
 
-// Fungsi untuk mendapatkan semua pemesanan (admin)
+// Function for retrieving all bookings (modified to handle missing joins)
 export const getAllBookings = async () => {
   try {
-    const { data, error } = await supabase
+    // First check if bookings table exists
+    const { error: checkError } = await supabase
       .from('bookings')
-      .select('*, cars(*)')
-      .order('created_at', { ascending: false });
-      
-    if (error) {
-      console.error('Error fetching all bookings:', error);
-      throw error;
+      .select('id')
+      .limit(1);
+    
+    if (checkError && checkError.code === '42P01') {
+      console.error('Bookings table does not exist');
+      return [];
     }
     
-    return data;
+    // Try with join first
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*, cars(*)')
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        throw error;
+      }
+      
+      return data;
+    } catch (joinError) {
+      console.warn('Join query failed, falling back to separate queries:', joinError);
+      
+      // Fallback: Get bookings without join
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        throw error;
+      }
+      
+      // If we have bookings, fetch car details separately for each
+      if (bookings && bookings.length > 0) {
+        const bookingsWithCars = await Promise.all(
+          bookings.map(async (booking) => {
+            try {
+              const car = await getCarById(booking.car_id);
+              return { ...booking, cars: car };
+            } catch (carError) {
+              console.error(`Error fetching car ${booking.car_id}:`, carError);
+              return { ...booking, cars: null };
+            }
+          })
+        );
+        
+        return bookingsWithCars;
+      }
+      
+      return bookings || [];
+    }
   } catch (error) {
     console.error('Error in getAllBookings function:', error);
     throw error;
@@ -769,4 +868,3 @@ USING (
   )
 );
 `;
-};

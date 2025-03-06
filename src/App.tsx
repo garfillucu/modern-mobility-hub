@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,8 +34,9 @@ const App = () => {
     const initialize = async () => {
       try {
         await initDatabase();
+        console.log('Database initialized successfully');
       } catch (error) {
-        console.error("Failed to initialize database:", error);
+        console.error('Failed to initialize database:', error);
       } finally {
         setInitializing(false);
       }
@@ -75,7 +75,6 @@ const App = () => {
                     <Route path="/register" element={<Register />} />
                     <Route path="/profile" element={<Profile />} />
                     
-                    {/* Admin Routes - Make sure /admin points to AdminDashboard */}
                     <Route element={<AdminLayout />}>
                       <Route path="/admin" element={<AdminDashboard />} />
                       <Route path="/admin/users" element={<AdminUsers />} />
