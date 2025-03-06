@@ -1,7 +1,8 @@
 
 import { supabase } from './supabase';
 import { toast } from '@/components/ui/use-toast';
-import { createCarsTable, seedCarsData, createBookingsTable, getCreateBookingsSql } from './api';
+import { createCarsTable, seedCarsData, createBookingsTable } from './api';
+import { getCreateBookingsSql } from './sqlQueries';
 
 export const initDatabase = async () => {
   console.log('Initializing database...');

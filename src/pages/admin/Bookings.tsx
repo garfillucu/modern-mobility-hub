@@ -1,11 +1,11 @@
 
 import { useState, useEffect } from 'react';
-import { getAllBookings } from '../../lib/api';
 import { toast } from '@/components/ui/use-toast';
 import BookingCard from '@/components/BookingCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { getAllBookings } from '../../lib/bookingService';
 
 const AdminBookings = () => {
   const [bookings, setBookings] = useState<any[]>([]);
