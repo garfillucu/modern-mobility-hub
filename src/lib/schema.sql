@@ -95,22 +95,27 @@ USING (
 -- RLS policy untuk tabel bookings
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 
--- PERBAIKAN: Policy untuk insert data bookings oleh authenticated users
+-- PENYEDERHANAAN: Menghapus semua policy lama sebelum membuat yang baru
 DROP POLICY IF EXISTS "Users can insert their own bookings" ON bookings;
-CREATE POLICY "Users can insert their own bookings" 
+DROP POLICY IF EXISTS "Users can view their own bookings" ON bookings;
+DROP POLICY IF EXISTS "Admins can view all bookings" ON bookings;
+DROP POLICY IF EXISTS "Users can update their own bookings" ON bookings;
+DROP POLICY IF EXISTS "Admins can update all bookings" ON bookings;
+
+-- PERBAIKAN: Memberikan akses penuh untuk semua pengguna yang terautentikasi
+-- untuk INSERT booking (baik admin maupun user biasa)
+CREATE POLICY "Anyone can insert bookings" 
 ON bookings FOR INSERT 
 TO authenticated 
-WITH CHECK (user_id = auth.uid());
+WITH CHECK (true);
 
 -- Policy membaca data bookings (user hanya bisa lihat miliknya)
-DROP POLICY IF EXISTS "Users can view their own bookings" ON bookings;
 CREATE POLICY "Users can view their own bookings" 
 ON bookings FOR SELECT 
 TO authenticated 
 USING (user_id = auth.uid());
 
 -- Policy untuk admin melihat semua bookings 
-DROP POLICY IF EXISTS "Admins can view all bookings" ON bookings;
 CREATE POLICY "Admins can view all bookings" 
 ON bookings FOR SELECT 
 TO authenticated 
@@ -123,14 +128,12 @@ USING (
 );
 
 -- Policy untuk update data bookings oleh user
-DROP POLICY IF EXISTS "Users can update their own bookings" ON bookings;
 CREATE POLICY "Users can update their own bookings" 
 ON bookings FOR UPDATE 
 TO authenticated 
 USING (user_id = auth.uid());
 
 -- Policy untuk admin mengupdate semua bookings
-DROP POLICY IF EXISTS "Admins can update all bookings" ON bookings;
 CREATE POLICY "Admins can update all bookings" 
 ON bookings FOR UPDATE 
 TO authenticated 
