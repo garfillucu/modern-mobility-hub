@@ -95,16 +95,17 @@ USING (
 -- RLS policy untuk tabel bookings
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 
--- PENYEDERHANAAN: Menghapus semua policy lama sebelum membuat yang baru
+-- RESET: Menghapus semua policy untuk tabel bookings agar bisa dibuat ulang dari awal
 DROP POLICY IF EXISTS "Users can insert their own bookings" ON bookings;
+DROP POLICY IF EXISTS "Anyone can insert bookings" ON bookings;
 DROP POLICY IF EXISTS "Users can view their own bookings" ON bookings;
 DROP POLICY IF EXISTS "Admins can view all bookings" ON bookings;
 DROP POLICY IF EXISTS "Users can update their own bookings" ON bookings;
 DROP POLICY IF EXISTS "Admins can update all bookings" ON bookings;
 
--- PERBAIKAN: Memberikan akses penuh untuk semua pengguna yang terautentikasi
--- untuk INSERT booking (baik admin maupun user biasa)
-CREATE POLICY "Anyone can insert bookings" 
+-- PERBAIKAN: Policy untuk insert yang lebih sederhana
+-- Mengizinkan SEMUA pengguna terautentikasi untuk membuat booking tanpa syarat
+CREATE POLICY "Allow all authenticated users to insert bookings" 
 ON bookings FOR INSERT 
 TO authenticated 
 WITH CHECK (true);

@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase';
 import { Booking } from './supabase';
 import { getCarById } from './api';
@@ -26,6 +27,23 @@ export const createBooking = async (booking: Omit<Booking, 'id' | 'created_at'>)
       status: booking.status
     });
     
+    // Cek peran pengguna untuk keperluan debugging
+    try {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', userId)
+        .single();
+        
+      if (userError) {
+        console.warn('Tidak dapat mengambil data peran pengguna:', userError);
+      } else {
+        console.log('User role:', userData?.role);
+      }
+    } catch (roleError) {
+      console.warn('Error saat memeriksa peran pengguna:', roleError);
+    }
+    
     // Cek apakah akses ke tabel bookings tersedia
     const { error: testError } = await supabase
       .from('bookings')
@@ -39,6 +57,7 @@ export const createBooking = async (booking: Omit<Booking, 'id' | 'created_at'>)
     }
     
     // Insert booking data dengan error handling yang lebih baik
+    console.log('Mencoba membuat booking baru...');
     const { data, error } = await supabase
       .from('bookings')
       .insert([{ 
@@ -53,6 +72,14 @@ export const createBooking = async (booking: Omit<Booking, 'id' | 'created_at'>)
     if (error) {
       console.error('Error creating booking:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
+      
+      // Log lebih detail untuk debugging RLS
+      if (error.code === '42501') {
+        console.error('Ini adalah error RLS policy. Pastikan policy sudah benar!');
+        console.error('User ID:', userId);
+        console.error('Booking car_id:', booking.car_id);
+      }
+      
       throw error;
     }
     
