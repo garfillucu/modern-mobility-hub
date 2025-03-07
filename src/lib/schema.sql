@@ -95,13 +95,21 @@ USING (
 -- RLS policy untuk tabel bookings
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 
--- Policy untuk membaca data bookings (user hanya bisa lihat miliknya)
+-- PERBAIKAN: Policy untuk insert data bookings oleh authenticated users
+DROP POLICY IF EXISTS "Users can insert their own bookings" ON bookings;
+CREATE POLICY "Users can insert their own bookings" 
+ON bookings FOR INSERT 
+TO authenticated 
+WITH CHECK (user_id = auth.uid());
+
+-- Policy membaca data bookings (user hanya bisa lihat miliknya)
+DROP POLICY IF EXISTS "Users can view their own bookings" ON bookings;
 CREATE POLICY "Users can view their own bookings" 
 ON bookings FOR SELECT 
 TO authenticated 
 USING (user_id = auth.uid());
 
--- Policy untuk admin melihat semua bookings (PERBAIKAN)
+-- Policy untuk admin melihat semua bookings 
 DROP POLICY IF EXISTS "Admins can view all bookings" ON bookings;
 CREATE POLICY "Admins can view all bookings" 
 ON bookings FOR SELECT 
@@ -114,19 +122,15 @@ USING (
   )
 );
 
--- Policy untuk insert data bookings
-CREATE POLICY "Users can insert their own bookings" 
-ON bookings FOR INSERT 
-TO authenticated 
-WITH CHECK (user_id = auth.uid());
-
--- Policy untuk update data bookings
+-- Policy untuk update data bookings oleh user
+DROP POLICY IF EXISTS "Users can update their own bookings" ON bookings;
 CREATE POLICY "Users can update their own bookings" 
 ON bookings FOR UPDATE 
 TO authenticated 
 USING (user_id = auth.uid());
 
 -- Policy untuk admin mengupdate semua bookings
+DROP POLICY IF EXISTS "Admins can update all bookings" ON bookings;
 CREATE POLICY "Admins can update all bookings" 
 ON bookings FOR UPDATE 
 TO authenticated 
@@ -143,7 +147,7 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('car-images', 'car-images', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
--- Policy untuk upload gambar - PERBAIKAN: Membuat policy yang lebih fleksibel
+-- Policy untuk upload gambar - Policy yang lebih fleksibel
 DROP POLICY IF EXISTS "Allow public viewing of car images" ON storage.objects;
 DROP POLICY IF EXISTS "Allow authenticated users to upload car images" ON storage.objects;
 

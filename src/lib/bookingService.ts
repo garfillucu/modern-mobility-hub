@@ -9,23 +9,54 @@ export const createBooking = async (booking: Omit<Booking, 'id' | 'created_at'>)
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session && !booking.user_id) {
+      console.error('Error: User tidak terautentikasi');
       throw new Error('User tidak terautentikasi');
     }
     
     // Gunakan user_id dari session jika tidak disediakan
     const userId = booking.user_id || session?.user.id;
+    console.log('Creating booking for user_id:', userId);
     
+    // Log data booking yang akan dibuat (tanpa data sensitif)
+    console.log('Booking data:', {
+      car_id: booking.car_id,
+      start_date: booking.start_date,
+      end_date: booking.end_date,
+      total_price: booking.total_price,
+      status: booking.status
+    });
+    
+    // Cek apakah akses ke tabel bookings tersedia
+    const { error: testError } = await supabase
+      .from('bookings')
+      .select('id')
+      .limit(1);
+      
+    if (testError) {
+      console.error('Test akses ke tabel bookings gagal:', testError);
+    } else {
+      console.log('Test akses ke tabel bookings berhasil');
+    }
+    
+    // Insert booking data dengan error handling yang lebih baik
     const { data, error } = await supabase
       .from('bookings')
-      .insert([{ ...booking, user_id: userId }])
+      .insert([{ 
+        ...booking, 
+        user_id: userId,
+        // Pastikan status default jika tidak ada
+        status: booking.status || 'pending'
+      }])
       .select()
       .single();
       
     if (error) {
       console.error('Error creating booking:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
     
+    console.log('Booking created successfully:', data?.id);
     return data as Booking;
   } catch (error) {
     console.error('Error in createBooking function:', error);
