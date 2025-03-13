@@ -55,6 +55,7 @@ const BookingHistory = () => {
       all: bookings.length,
       pending: 0,
       confirmed: 0,
+      in_use: 0,
       completed: 0,
       cancelled: 0
     };
@@ -75,7 +76,7 @@ const BookingHistory = () => {
       <h1 className="text-3xl font-bold mb-6">Riwayat Pemesanan</h1>
       
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="mb-6">
-        <TabsList className="grid grid-cols-5 w-full mb-4">
+        <TabsList className="grid grid-cols-6 w-full mb-4">
           <TabsTrigger value="all">
             Semua 
             <span className="ml-2 bg-muted px-2 py-0.5 rounded-full text-xs">
@@ -94,9 +95,15 @@ const BookingHistory = () => {
               {bookingCounts.confirmed}
             </span>
           </TabsTrigger>
+          <TabsTrigger value="in_use">
+            Digunakan
+            <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">
+              {bookingCounts.in_use}
+            </span>
+          </TabsTrigger>
           <TabsTrigger value="completed">
             Selesai
-            <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">
+            <span className="ml-2 bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-xs">
               {bookingCounts.completed}
             </span>
           </TabsTrigger>
