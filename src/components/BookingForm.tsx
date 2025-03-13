@@ -31,6 +31,7 @@ const BookingForm = ({ car }: BookingFormProps) => {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
   const [notes, setNotes] = useState('');
+  const [pickupLocation, setPickupLocation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Hitung jumlah hari
@@ -45,6 +46,11 @@ const BookingForm = ({ car }: BookingFormProps) => {
   const calculateTotalPrice = () => {
     const days = calculateDays();
     return days * (car.pricePerDay || 0);
+  };
+
+  // Hitung jumlah DP (30% dari total)
+  const calculateDownPayment = () => {
+    return Math.round(calculateTotalPrice() * 0.3);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,6 +93,15 @@ const BookingForm = ({ car }: BookingFormProps) => {
       return;
     }
 
+    if (!pickupLocation) {
+      toast({
+        title: "Lokasi Pengambilan",
+        description: "Silakan tentukan lokasi pengambilan mobil",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
 
@@ -100,14 +115,16 @@ const BookingForm = ({ car }: BookingFormProps) => {
         customer_name: customerName,
         customer_phone: customerPhone,
         customer_email: customerEmail,
-        notes: notes
+        notes: notes,
+        pickup_location: pickupLocation,
+        payment_status: 'unpaid' as const
       };
 
       const booking = await createBooking(bookingData);
 
       toast({
         title: "Booking Berhasil",
-        description: "Permintaan booking Anda telah berhasil dibuat",
+        description: "Permintaan booking Anda telah berhasil dibuat. Silakan lakukan pembayaran DP.",
       });
 
       navigate('/profile');
@@ -197,6 +214,18 @@ const BookingForm = ({ car }: BookingFormProps) => {
           </div>
         </div>
 
+        {/* Lokasi Pengambilan */}
+        <div className="space-y-2">
+          <Label htmlFor="pickupLocation">Lokasi Pengambilan</Label>
+          <Input
+            id="pickupLocation"
+            value={pickupLocation}
+            onChange={(e) => setPickupLocation(e.target.value)}
+            placeholder="Alamat lengkap untuk pengambilan mobil"
+            required
+          />
+        </div>
+
         {/* Informasi Pelanggan */}
         <div className="border-t border-b py-4 my-4 space-y-4">
           <h3 className="text-md font-medium">Informasi Pelanggan</h3>
@@ -256,9 +285,16 @@ const BookingForm = ({ car }: BookingFormProps) => {
             <span>Harga per Hari:</span>
             <span>Rp {(car.pricePerDay || 0).toLocaleString('id-ID')}</span>
           </div>
-          <div className="flex justify-between font-bold border-t pt-2 mt-2">
+          <div className="flex justify-between border-t pt-2 mt-2">
             <span>Total Pembayaran:</span>
             <span>Rp {calculateTotalPrice().toLocaleString('id-ID')}</span>
+          </div>
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>DP Minimal (30%):</span>
+            <span>Rp {calculateDownPayment().toLocaleString('id-ID')}</span>
+          </div>
+          <div className="mt-2 text-sm text-muted-foreground">
+            <p>* Pembayaran DP minimal 30% dari total harga dapat dilakukan setelah booking berhasil dibuat.</p>
           </div>
         </div>
 

@@ -56,6 +56,9 @@ export const createBooking = async (booking: Omit<Booking, 'id' | 'created_at'>)
       console.log('Test akses ke tabel bookings berhasil');
     }
     
+    // Generate invoice number
+    const invoiceNumber = `INV-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+    
     // Insert booking data dengan error handling yang lebih baik
     console.log('Mencoba membuat booking baru...');
     const { data, error } = await supabase
@@ -64,7 +67,10 @@ export const createBooking = async (booking: Omit<Booking, 'id' | 'created_at'>)
         ...booking, 
         user_id: userId,
         // Pastikan status default jika tidak ada
-        status: booking.status || 'pending'
+        status: booking.status || 'pending',
+        // Tambahkan data pembayaran
+        payment_status: 'unpaid',
+        invoice_number: invoiceNumber
       }])
       .select()
       .single();
@@ -289,5 +295,272 @@ export const createBookingsTable = async () => {
   } catch (error) {
     console.error('Error checking/creating bookings table:', error);
     return false;
+  }
+};
+
+// Fungsi baru untuk pembayaran
+export const createPayment = async (bookingId: string, payment: {
+  amount: number;
+  payment_method: string;
+  payment_proof?: string;
+  notes?: string;
+}) => {
+  try {
+    // Generate invoice number jika belum ada
+    const invoiceNumber = `PAY-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+    
+    // Insert payment data
+    const { data, error } = await supabase
+      .from('payments')
+      .insert([{ 
+        booking_id: bookingId,
+        amount: payment.amount,
+        payment_method: payment.payment_method,
+        payment_status: 'pending', // Admin akan verifikasi pembayaran
+        invoice_number: invoiceNumber,
+        payment_proof: payment.payment_proof,
+        notes: payment.notes
+      }])
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error creating payment:', error);
+      throw error;
+    }
+    
+    // Update booking payment status
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ 
+        payment_status: 'pending_verification',
+        payment_amount: supabase.rpc('add_payment_amount', { 
+          booking_id: bookingId, 
+          amount: payment.amount 
+        })
+      })
+      .eq('id', bookingId);
+      
+    if (updateError) {
+      console.error('Error updating booking payment status:', updateError);
+      throw updateError;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in createPayment function:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk mengambil pembayaran berdasarkan booking ID
+export const getPaymentsByBookingId = async (bookingId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('booking_id', bookingId)
+      .order('payment_date', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching payments:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in getPaymentsByBookingId function:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk verifikasi pembayaran (hanya admin)
+export const verifyPayment = async (paymentId: string, isApproved: boolean) => {
+  try {
+    // Update payment status
+    const { data, error } = await supabase
+      .from('payments')
+      .update({ 
+        payment_status: isApproved ? 'completed' : 'rejected' 
+      })
+      .eq('id', paymentId)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error verifying payment:', error);
+      throw error;
+    }
+    
+    // Jika disetujui, update juga status booking
+    if (isApproved) {
+      const booking = await getBookingById(data.booking_id);
+      
+      // Periksa jika total pembayaran sudah mencapai total harga
+      const { data: paymentsData } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('booking_id', data.booking_id)
+        .eq('payment_status', 'completed');
+        
+      const totalPaid = paymentsData?.reduce((sum, p) => sum + p.amount, 0) || 0;
+      const paymentStatus = totalPaid >= booking.total_price ? 'paid' : 'partially_paid';
+      
+      // Update booking payment status
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ 
+          payment_status: paymentStatus,
+          status: paymentStatus === 'paid' ? 'confirmed' : booking.status
+        })
+        .eq('id', data.booking_id);
+        
+      if (updateError) {
+        console.error('Error updating booking status after payment:', updateError);
+        throw updateError;
+      }
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in verifyPayment function:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk pengambilan mobil
+export const recordPickup = async (bookingId: string, pickupData: {
+  pickup_location: string;
+  pickup_time: string; // ISO date string
+  notes?: string;
+  fuel_level?: number;
+  odometer?: number;
+  exterior_condition?: string;
+  interior_condition?: string;
+  damage_notes?: string;
+  images?: string[];
+}) => {
+  try {
+    // Update booking dengan info pengambilan
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ 
+        pickup_location: pickupData.pickup_location,
+        pickup_time: pickupData.pickup_time,
+        is_pickup_completed: true,
+        status: 'in_use' // Ubah status menjadi sedang digunakan
+      })
+      .eq('id', bookingId)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error recording pickup:', error);
+      throw error;
+    }
+    
+    // Tambahkan data inspeksi pengambilan
+    const { error: inspectionError } = await supabase
+      .from('inspections')
+      .insert([{
+        booking_id: bookingId,
+        type: 'pickup',
+        notes: pickupData.notes,
+        fuel_level: pickupData.fuel_level,
+        odometer: pickupData.odometer,
+        exterior_condition: pickupData.exterior_condition,
+        interior_condition: pickupData.interior_condition,
+        damage_notes: pickupData.damage_notes,
+        images: pickupData.images
+      }]);
+      
+    if (inspectionError) {
+      console.error('Error recording pickup inspection:', inspectionError);
+      throw inspectionError;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in recordPickup function:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk pengembalian mobil
+export const recordReturn = async (bookingId: string, returnData: {
+  return_location: string;
+  return_time: string; // ISO date string
+  notes?: string;
+  fuel_level?: number;
+  odometer?: number;
+  exterior_condition?: string;
+  interior_condition?: string;
+  damage_notes?: string;
+  images?: string[];
+}) => {
+  try {
+    // Update booking dengan info pengembalian
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ 
+        return_location: returnData.return_location,
+        return_time: returnData.return_time,
+        is_return_completed: true,
+        status: 'completed' // Ubah status menjadi selesai
+      })
+      .eq('id', bookingId)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error recording return:', error);
+      throw error;
+    }
+    
+    // Tambahkan data inspeksi pengembalian
+    const { error: inspectionError } = await supabase
+      .from('inspections')
+      .insert([{
+        booking_id: bookingId,
+        type: 'return',
+        notes: returnData.notes,
+        fuel_level: returnData.fuel_level,
+        odometer: returnData.odometer,
+        exterior_condition: returnData.exterior_condition,
+        interior_condition: returnData.interior_condition,
+        damage_notes: returnData.damage_notes,
+        images: returnData.images
+      }]);
+      
+    if (inspectionError) {
+      console.error('Error recording return inspection:', inspectionError);
+      throw inspectionError;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in recordReturn function:', error);
+    throw error;
+  }
+};
+
+// Fungsi untuk mengambil inspeksi mobil
+export const getInspections = async (bookingId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('inspections')
+      .select('*')
+      .eq('booking_id', bookingId)
+      .order('inspection_date', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching inspections:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in getInspections function:', error);
+    throw error;
   }
 };
